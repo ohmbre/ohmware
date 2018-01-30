@@ -1,5 +1,6 @@
 #!/bin/bash
 
+remote_addr=ohmbre #10.0.0.3
 arch=arm64
 gccarch=aarch64
 config=bcmrpi3_defconfig
@@ -7,17 +8,16 @@ dts_subdir=dts/broadcom
 kernel=Image
 tree=ohmbre-4.15.y
 base_tree=rpi-4.15.y
-srcs_dir=/root/src/ohmkernel
-blds_dir=/root/build/ohmkernel
-remote_ip=10.0.0.3
-wrks_dir=/root/.work/ohmkernel
-uppers_dir=/root/.uppers/ohmkernel
-base_src_dir=$srcs_dir/$base_tree
-src_dir=$srcs_dir/$tree
+this_dir=`dirname $0`
+blds_dir=$this_dir/build
+wrks_dir=$this_dir/.work
+uppers_dir=$this_dir/.uppers
+base_src_dir=$this_dir/$base_tree
+src_dir=$this_dir/$tree
 bld_dir=$blds_dir/$tree
 wrk_dir=$wrks_dir/$tree
 upper_dir=$uppers_dir/$tree
-dist_dir=$srcs_dir/dist
+dist_dir=$this_dir/dist
 echo "building in $bld_dir ..."
 make="make"
 
@@ -42,7 +42,7 @@ setup() {
     mkdir -p $upper_dir
 
     umount $src_dir > /dev/null 2>&1 || /bin/true
-    [[ $(findmnt -M "$src_dir") ]] || mount -t overlay overlay -o lowerdir=$srcs_dir/overlay:$base_src_dir,upperdir=$upper_dir,workdir=$wrk_dir $src_dir
+    [[ $(findmnt -M "$src_dir") ]] || mount -t overlay overlay -o lowerdir=$this_dir/overlay:$base_src_dir,upperdir=$upper_dir,workdir=$wrk_dir $src_dir
     for f in $(find $src_dir -name \*.patch); do
 	patch $(dirname $f)/$(basename $f .patch) $f
     done
@@ -57,9 +57,10 @@ config() {
     #echo "-- config changes below --"
     #diff $bld_dir/defconfig $src_dir/arch/$arch/configs/$config
     cp $bld_dir/defconfig $src_dir/arch/$arch/configs/$config
-    pushd $src_dir
-    git diff arch/$arch/configs/$config > $OLDPWD/kernel/arch/$arch/configs/$config.patch
-    popd
+    echo $src_dir
+    cd $src_dir
+    git diff arch/$arch/configs/$config > $this_dir/overlay/arch/$arch/configs/$config.patch
+    cd $this_dir
     $make prepare
     return 0
 }
