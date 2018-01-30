@@ -1,0 +1,116 @@
+/dts-v1/;
+
+/ {
+  videocore {
+
+    pins_cm3 {
+
+      pin_config {
+
+        pin@default {
+          polarity = "active_high";
+          termination = "pull_down";
+          startup_state = "inactive";
+          function = "input";
+        }; // pin
+
+	// I2S PINS
+	pin@p0 {function = "i2c0"; termination = "pull_up"; startup_state="active"; polarity="active_high"; drive_strength_mA = <8>;};
+        pin@p1 {function = "i2c0"; termination = "pull_up"; startup_state="active"; polarity="active_high"; drive_strength_mA = <8>;};
+	codec_pdn:
+		pin@p2 {function = "output"; termination = "pull_up"; startup_state="active"; polarity="active_high"; drive_strength_mA = <8>;};
+
+	// GATE INS	
+        pin@p3 {function = "input"; termination = "pull_up"; startup_state="inactive"; polarity="active_high"; drive_strength_mA = <8>;};
+        pin@p4 {function = "input"; termination = "pull_up"; startup_state="inactive"; polarity="active_high"; drive_strength_mA = <8>;};
+	pin@p5 {function = "input"; termination = "pull_up"; startup_state="inactive"; polarity="active_high"; drive_strength_mA = <8>;};
+	pin@p12 {function = "input"; termination = "pull_up"; startup_state="inactive"; polarity="active_high"; drive_strength_mA = <8>;};
+	pin@p13 {function = "input"; termination = "pull_up"; startup_state="inactive"; polarity="active_high"; drive_strength_mA = <8>;};
+	pin@p32 {function = "input"; termination = "pull_up"; startup_state="inactive"; polarity="active_high"; drive_strength_mA = <8>;};
+
+	// GATE OUTS
+	pin@p39 {function = "output"; termination = "pull_up"; startup_state="inactive"; polarity="active_high"; drive_strength_mA = <8>;};
+	pin@p38 {function = "output"; termination = "pull_up"; startup_state="inactive"; polarity="active_high"; drive_strength_mA = <8>;};
+	pin@p37 {function = "output"; termination = "pull_up"; startup_state="inactive"; polarity="active_high"; drive_strength_mA = <8>;};	
+	pin@p36 {function = "output"; termination = "pull_up"; startup_state="inactive"; polarity="active_high"; drive_strength_mA = <8>;};
+	pin@p35 {function = "output"; termination = "pull_up"; startup_state="inactive"; polarity="active_high"; drive_strength_mA = <8>;};	
+	pin@p34 {function = "output"; termination = "pull_up"; startup_state="inactive"; polarity="active_high"; drive_strength_mA = <8>;};
+
+	// TOUCH TFT
+        pin@p6 { function = "output"; termination = "no_pulling"; startup_state="active"; polarity="active_high";}; // TOUCHSCREEN POWER OFF
+	pin@p7 { function = "input";  termination = "no_pulling"; startup_state="active"; polarity="active_high";}; // TOUCHSCREEN INTERRUPT
+
+	// ADC
+	pin@p18 { function = "output"; };
+	pin@p19 { function = "spi1"; };
+	pin@p20 { function = "spi1"; };
+	pin@p21 { function = "spi1"; };
+
+	// DAC
+	pin@p43 { function = "output"; };
+	pin@p42 { function = "spi2"; };
+	pin@p41 { function = "spi2"; };
+
+	// BLUETOOTH
+	pin@p14 { function = "uart0";   termination = "no_pulling"; drive_strength_mA = < 8 >; }; // UART0 TX
+        pin@p15 { function = "uart0";   termination = "pull_up"; drive_strength_mA = < 8 >; }; // UART0 RX
+        pin@p16 { function = "uart0";   termination = "no_pulling"; drive_strength_mA = < 8 >; }; // UART0 CTS/RTS
+        pin@p17 { function = "uart0";   termination = "pull_up"; drive_strength_mA = < 8 >; }; // UART0 CTS/RTS
+        pin@p33 { function = "output";  termination = "no_pulling"; startup_state="inactive"; polarity="active_high";}; // BT_ON / WL_ON
+
+	// WIFI
+        pin@p22 { function = "emmc";  termination = "pull_up";    drive_strength_mA = <8>; }; // SD1 CLK
+        pin@p23 { function = "emmc";  termination = "pull_up";    drive_strength_mA = <8>; }; // SD1 CMD
+        pin@p24 { function = "emmc";  termination = "pull_up";    drive_strength_mA = <8>; }; // SD1 D0
+        pin@p25 { function = "emmc";  termination = "pull_up";    drive_strength_mA = <8>; }; // SD1 D1
+        pin@p26 { function = "emmc";  termination = "pull_up";    drive_strength_mA = <8>; }; // SD1 D2
+        pin@p27 { function = "emmc";  termination = "pull_up";    drive_strength_mA = <8>; }; // SD1 D3
+
+        pin@p46 { function = "input";   termination = "pull_up";    }; // SMPS_SCL
+	pin@p47 { function = "input";   termination = "pull_up";    }; // SMPS_SDA
+
+	// INTERNAL eMMC
+	pin@p48 { function = "sdcard";  termination = "pull_up";    drive_strength_mA = <8>; }; // SD0 CLK
+        pin@p49 { function = "sdcard";  termination = "pull_up";    drive_strength_mA = <8>; }; // SD0 CMD
+        pin@p50 { function = "sdcard";  termination = "pull_up";    drive_strength_mA = <8>; }; // SD0 D0
+        pin@p51 { function = "sdcard";  termination = "pull_up";    drive_strength_mA = <8>; }; // SD0 D1
+        pin@p52 { function = "sdcard";  termination = "pull_up";    drive_strength_mA = <8>; }; // SD0 D2
+        pin@p53 { function = "sdcard";  termination = "pull_up";    drive_strength_mA = <8>; }; // SD0 D3
+
+        pin@p128 { function = "input";  termination = "no_pulling"; polarity = "active_low"; }; // Hotplug
+	pin@p129 { function = "output"; termination = "no_pulling"; polarity = "active_low"; }; // EMMC_ENABLE_N
+
+      }; // pin_config
+
+      pin_defines {
+        pin_define@HDMI_CONTROL_ATTACHED { type = "external"; number = <0>; }; // HPD_N
+        pin_define@EMMC_ENABLE { type = "external"; number = <1>;};
+	pin_define@SMPS_SDA { type = "internal"; number = <46>; };
+	pin_define@SMPS_SCL { type = "internal"; number = <47>; };
+        pin_define@WL_ON { type = "internal"; number = <33>; };
+	pin_define@BT_ON { type = "internal"; number = <33>; };
+	pin_define@WL_LPO_CLK { type = "absent"; };
+	pin_define@ID_SDA { type = "absent"; };
+	pin_define@ID_SCL { type = "absent"; };
+	pin_define@DISPLAY_SDA { type = "absent"; };
+	pin_define@DISPLAY_SCL { type = "absent"; };
+	pin_define@SD_CARD_DETECT { type = "absent"; };
+	pin_define@SAFE_MODE { type = "absent"; };
+	pin_define@PWMR { type = "absent"; };
+	pin_define@PWML { type = "absent"; };
+	pin_define@SIO_1V8_SEL { type = "absent"; };
+	pin_define@USB_LIMIT_1A2 { type = "absent"; };
+	pin_define@ETH_CLK { type = "absent"; };
+	pin_define@LAN_RUN { type = "absent"; };
+	pin_define@LEDS_DISK_ACTIVITY { type = "absent"; };
+	pin_define@POWER_LOW { type = "absent"; };
+	pin_define@NUM_CAMERAS { type = "absent"; };
+	pin_define@SDCARD_CONTROL_POWER { type = "absent"; };
+
+	
+      }; // pin_defines
+
+    }; // pins_cm3
+
+  }; // videocore
+};

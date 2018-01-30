@@ -1,0 +1,151 @@
+/dts-v1/;
+#include "bcm2837.dtsi"
+#include "bcm2835-rpi.dtsi"
+#include "bcm283x-rpi-usb-host.dtsi"
+
+#include <dt-bindings/clock/bcm2835.h>
+
+/ {
+	compatible = "raspberrypi,3-model-b", "brcm,bcm2837", "brcm,bcm2835";
+	model = "Raspberry Pi Compute Module 3";
+
+	chosen {
+	       stdout-path = "ttyACM0:115200n8";
+	       bootargs = "cma=128M";
+	};
+
+	memory {
+		reg = <0 0x40000000>;
+	};
+
+	soc {
+	    arm-pmu {
+	    	    compatible = "arm,cortex-a7-pmu";
+		    interrupt-parent = <&local_intc>;
+		    interrupts = <9>;
+	    };
+	    syscon@40000000 {
+	    	    compatible = "brcm,bcm2836-arm-local", "syscon";
+		    reg = <0x40000000 0x100>;
+	    };
+	};
+
+        virtgpio: virtgpio {
+                compatible = "brcm,bcm2835-virtgpio";
+                gpio-controller;
+                #gpio-cells = <2>;
+	        firmware = <&firmware>;
+                status = "okay";
+	};
+
+        expgpio: expgpio {
+	        compatible = "brcm,bcm2835-expgpio";
+                gpio-controller;
+                #gpio-cells = <2>;
+		firmware = <&firmware>;
+                status = "okay";
+	};
+
+	leds {
+             act {
+                gpios = <&virtgpio 0 0>;
+             };
+        };
+
+	/*vchiq: vchiq {
+             compatible = "brcm,bcm2835-vchiq";
+             reg = <0x7e00b840 0xf>;
+	     interrupts = <0 2>;
+             cache-line-size = <32>;
+             firmware = <&firmware>;
+        };*/
+
+	/*vcsm: vcsm {
+	     compatible = "raspberrypi,bcm2835-vcsm";
+	     firmware = <&firmware>;
+	     status = "okay";
+	};*/
+
+	cpus: cpus {
+		#address-cells = <1>;
+		#size-cells = <0>;
+		enable-method = "brcm,bcm2836-smp"; // for ARM 32-bit
+
+		cpu0: cpu@0 {
+			device_type = "cpu";
+			compatible = "arm,cortex-a53";
+			reg = <0>;
+			enable-method = "brcm,bcm2836-smp";
+		};
+
+		cpu1: cpu@1 {
+			device_type = "cpu";
+			compatible = "arm,cortex-a53";
+			reg = <1>;
+			enable-method = "brcm,bcm2836-smp";
+		};
+
+		cpu2: cpu@2 {
+			device_type = "cpu";
+			compatible = "arm,cortex-a53";
+			reg = <2>;
+			enable-method = "brcm,bcm2836-smp";
+		};
+
+		cpu3: cpu@3 {
+			device_type = "cpu";
+			compatible = "arm,cortex-a53";
+			reg = <3>;
+			enable-method = "brcm,bcm2836-smp";
+		};
+	};
+};
+
+&uart0 {
+	status = "okay";
+};
+
+&hdmi {
+       hpd-gpios = <&expgpio 0 GPIO_ACTIVE_LOW>;
+       status = "okay";
+};
+     
+
+/* SDHOST is used to drive the SD card */
+&sdhost {
+	pinctrl-names = "default";
+	pinctrl-0 = <&sdhost_gpio48>;
+	status = "okay";
+	bus-width = <4>;
+	brcm,overclock-50 = <84>;
+	brcm,pio-limit = <1>;
+};
+
+/* --- custom -- */
+
+&i2c2 {
+      status = "okay";
+};
+
+&clocks {
+	claim-clocks = <
+		     BCM2835_PLLD_DSI0
+		     BCM2835_PLLD_DSI1
+		     BCM2835_PLLH_AUX
+		     BCM2835_PLLH_PIX
+		     >;
+};
+
+&cpu_thermal {
+        coefficients = <(-538)  407000>;
+};
+
+&uart0 {
+  pinctrl-names = "default";
+  pinctrl-0 = <&uart0_gpio14 &uart0_ctsrts_gpio16>;
+  status = "okay";
+};
+
+&uart1 {
+  status = "disabled";
+};

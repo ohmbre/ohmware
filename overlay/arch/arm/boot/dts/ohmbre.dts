@@ -1,0 +1,88 @@
+/dts-v1/;
+
+#include "bcm2837-rpi-cm3.dts"
+#include <dt-bindings/interrupt-controller/irq.h>
+
+#define ALT(x) BCM2835_FSEL_ALT ## x
+#define DIR(x) BCM2835_FSEL_GPIO_ ## x
+#define PULL(x) BCM2835_PUD_ ## x
+
+&cpu_thermal {
+  trips {
+    cpu-crit {
+      temperature     = <85000>;
+      hysteresis      = <0>;
+      type            = "critical";
+    };
+  };
+};
+
+
+&gpio {
+
+  spi0_pins: spi0_pins {
+    brcm,pins = <9 10 11>;
+    brcm,function = <ALT(0)>;
+  };
+
+  spi0_cs_pins: spi0_cs_pins {
+    brcm,pins = <8>;
+    brcm,function = <DIR(OUT)>;
+  };
+
+  tft_pins: tft_pins {
+    brcm,pins = <7>;
+    brcm,function = <DIR(IN)>;
+    brcm,pull = <PULL(UP)>;
+  };
+
+  sdio_pins: sdio_pins {
+    brcm,pins = <22 23 24 25 26 27>;
+    brcm,function = <ALT(3)>;
+    brcm,pull = <PULL(OFF) PULL(UP) PULL(UP) PULL(UP) PULL(UP) PULL(UP)>;
+  };
+
+  sdio_vss2: sdio_vss2 {
+    brcm,pins = <33>;
+    brcm,function = <DIR(IN)>;
+    brcm,pull = <PULL(DOWN)>;
+  };
+
+};
+
+&spi {
+
+  pinctrl-names = "default";
+  pinctrl-0 = <&spi0_pins &spi0_cs_pins>;
+  cs-gpios = <&gpio 8 GPIO_ACTIVE_LOW>;
+  dmas = <&dma 6>, <&dma 7>;
+  dma-names = "tx", "rx";
+  status = "okay";
+
+  touchscreen: tinyft8@0{
+    compatible = "ftdi,ft8xx";
+    reg = <0>;
+    pinctrl-names = "default";
+    pinctrl-0 = <&tft_pins>;
+    spi-max-frequency = <100000000>;
+    interrupt-parent = <&gpio>;
+    interrupts = <7 IRQ_TYPE_EDGE_FALLING>;
+    irq-gpios = <&gpio 7 GPIO_ACTIVE_LOW>;
+    touchscreen-size-x = <320>;
+    touchscreen-size-y = <240>;
+    status = "okay";
+  };
+
+};
+
+&sdhci {
+  compatible = "brcm,bcm2835-sdhci";
+  pinctrl-names = "default";
+  pinctrl-0 = <&sdio_pins &sdio_vss2>;
+  status = "okay";
+  removable;
+};
+
+&pwm {
+  status = "disabled";
+};

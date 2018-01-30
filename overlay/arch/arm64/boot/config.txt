@@ -1,0 +1,14 @@
+[all]
+kernel=ohmbre.img
+device_tree=ohmbre.dtb
+#initramfs init.cpio.gz followkernel
+#ramfsfile=init.cpio.gz
+#ramfsaddr=-1
+
+avoid_pwm_pll=1
+gpu_mem=32
+
+boot_delay=0
+avoid_warnings=2
+disable_splash=1
+arm_control=0x200

@@ -1,0 +1,99 @@
+diff --git a/drivers/net/wireless/marvell/mwifiex/sta_cmd.c b/drivers/net/wireless/marvell/mwifiex/sta_cmd.c
+index fb090144a..ab2aaa727 100644
+--- a/drivers/net/wireless/marvell/mwifiex/sta_cmd.c
++++ b/drivers/net/wireless/marvell/mwifiex/sta_cmd.c
+@@ -2260,8 +2260,8 @@ int mwifiex_sta_init_cmd(struct mwifiex_private *priv, u8 first_sta, bool init)
+ 
+ 		ret = mwifiex_send_cmd(priv, HostCmd_CMD_FUNC_INIT,
+ 				       HostCmd_ACT_GEN_SET, 0, NULL, true);
+-		if (ret)
+-			return -1;
++		//if (ret)
++		//	return -1;
+ 
+ 		/* Download calibration data to firmware.
+ 		 * The cal-data can be read from device tree and/or
+@@ -2310,8 +2310,8 @@ int mwifiex_sta_init_cmd(struct mwifiex_private *priv, u8 first_sta, bool init)
+ 		ret = mwifiex_send_cmd(priv, HostCmd_CMD_RECONFIGURE_TX_BUFF,
+ 				       HostCmd_ACT_GEN_SET, 0,
+ 				       &priv->adapter->tx_buf_size, true);
+-		if (ret)
+-			return -1;
++		//if (ret)
++		//	return -1;
+ 
+ 		if (priv->bss_type != MWIFIEX_BSS_TYPE_UAP) {
+ 			/* Enable IEEE PS by default */
+@@ -2320,8 +2320,8 @@ int mwifiex_sta_init_cmd(struct mwifiex_private *priv, u8 first_sta, bool init)
+ 					       HostCmd_CMD_802_11_PS_MODE_ENH,
+ 					       EN_AUTO_PS, BITMAP_STA_PS, NULL,
+ 					       true);
+-			if (ret)
+-				return -1;
++			//if (ret)
++			//	return -1;
+ 		}
+ 
+ 		if (drcs) {
+@@ -2332,8 +2332,8 @@ int mwifiex_sta_init_cmd(struct mwifiex_private *priv, u8 first_sta, bool init)
+ 						       HostCmd_ACT_GEN_SET, 0,
+ 						       &adapter->drcs_enabled,
+ 						       true);
+-			if (ret)
+-				return -1;
++			//if (ret)
++			//	return -1;
+ 		}
+ 
+ 		mwifiex_send_cmd(priv, HostCmd_CMD_CHAN_REGION_CFG,
+@@ -2343,15 +2343,15 @@ int mwifiex_sta_init_cmd(struct mwifiex_private *priv, u8 first_sta, bool init)
+ 	/* get tx rate */
+ 	ret = mwifiex_send_cmd(priv, HostCmd_CMD_TX_RATE_CFG,
+ 			       HostCmd_ACT_GEN_GET, 0, NULL, true);
+-	if (ret)
+-		return -1;
++	//if (ret)
++	//	return -1;
+ 	priv->data_rate = 0;
+ 
+ 	/* get tx power */
+ 	ret = mwifiex_send_cmd(priv, HostCmd_CMD_RF_TX_PWR,
+ 			       HostCmd_ACT_GEN_GET, 0, NULL, true);
+-	if (ret)
+-		return -1;
++	//if (ret)
++	//	return -1;
+ 
+ 	memset(&amsdu_aggr_ctrl, 0, sizeof(amsdu_aggr_ctrl));
+ 	amsdu_aggr_ctrl.enable = true;
+@@ -2359,15 +2359,15 @@ int mwifiex_sta_init_cmd(struct mwifiex_private *priv, u8 first_sta, bool init)
+ 	ret = mwifiex_send_cmd(priv, HostCmd_CMD_AMSDU_AGGR_CTRL,
+ 			       HostCmd_ACT_GEN_SET, 0,
+ 			       &amsdu_aggr_ctrl, true);
+-	if (ret)
+-		return -1;
++	//if (ret)
++	//	return -1;
+ 	/* MAC Control must be the last command in init_fw */
+ 	/* set MAC Control */
+ 	ret = mwifiex_send_cmd(priv, HostCmd_CMD_MAC_CONTROL,
+ 			       HostCmd_ACT_GEN_SET, 0,
+ 			       &priv->curr_pkt_filter, true);
+-	if (ret)
+-		return -1;
++	//if (ret)
++	//	return -1;
+ 
+ 	if (!disable_auto_ds && first_sta &&
+ 	    priv->bss_type != MWIFIEX_BSS_TYPE_UAP) {
+@@ -2377,8 +2377,8 @@ int mwifiex_sta_init_cmd(struct mwifiex_private *priv, u8 first_sta, bool init)
+ 		ret = mwifiex_send_cmd(priv, HostCmd_CMD_802_11_PS_MODE_ENH,
+ 				       EN_AUTO_PS, BITMAP_AUTO_DS,
+ 				       &auto_ds, true);
+-		if (ret)
+-			return -1;
++		//if (ret)
++		//	return -1;
+ 	}
+ 
+ 	if (priv->bss_type != MWIFIEX_BSS_TYPE_UAP) {

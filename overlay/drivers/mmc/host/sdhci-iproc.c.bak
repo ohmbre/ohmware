@@ -1,0 +1,37 @@
+diff --git a/drivers/mmc/host/sdhci-iproc.c b/drivers/mmc/host/sdhci-iproc.c
+index 61666d269..0cc5a4fc6 100644
+--- a/drivers/mmc/host/sdhci-iproc.c
++++ b/drivers/mmc/host/sdhci-iproc.c
+@@ -211,9 +211,12 @@ static const struct sdhci_iproc_data iproc_data = {
+ 
+ static const struct sdhci_pltfm_data sdhci_bcm2835_pltfm_data = {
+ 	.quirks = SDHCI_QUIRK_BROKEN_CARD_DETECTION |
+-		  SDHCI_QUIRK_DATA_TIMEOUT_USES_SDCLK |
++	          SDHCI_QUIRK_DATA_TIMEOUT_USES_SDCLK |
+ 		  SDHCI_QUIRK_MISSING_CAPS |
+-		  SDHCI_QUIRK_NO_HISPD_BIT,
++	          SDHCI_QUIRK_FORCE_DMA |
++	          SDHCI_QUIRK_MULTIBLOCK_READ_ACMD12,
++	.quirks2 = SDHCI_QUIRK2_PRESET_VALUE_BROKEN,
++	//   SDHCI_QUIRK2_STOP_WITH_TC,
+ 	.ops = &sdhci_iproc_32only_ops,
+ };
+ 
+@@ -222,10 +225,15 @@ static const struct sdhci_iproc_data bcm2835_data = {
+ 	.caps = ((0x1 << SDHCI_MAX_BLOCK_SHIFT)
+ 			& SDHCI_MAX_BLOCK_MASK) |
+ 		SDHCI_CAN_VDD_330 |
++		SDHCI_CAN_DO_SDMA |
+ 		SDHCI_CAN_DO_HISPD,
++	
+ 	.caps1 = SDHCI_DRIVER_TYPE_A |
+-		 SDHCI_DRIVER_TYPE_C,
+-	.mmc_caps = 0x00000000,
++	         SDHCI_DRIVER_TYPE_C |
++	         SDHCI_SUPPORT_DDR50 |
++	         SDHCI_SUPPORT_SDR50 |
++	         SDHCI_QUIRK2_TUNING_WORK_AROUND,
++	.mmc_caps = MMC_CAP_1_8V_DDR,
+ };
+ 
+ static const struct of_device_id sdhci_iproc_of_match[] = {

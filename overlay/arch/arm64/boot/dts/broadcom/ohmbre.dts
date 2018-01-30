@@ -1,0 +1,244 @@
+// SPDX-License-Identifier: GPL-2.0
+/dts-v1/;
+#include "../../../../arm/boot/dts/bcm2837.dtsi"
+#include "../../../../arm/boot/dts/bcm2835-rpi.dtsi"
+#include "../../../../arm/boot/dts/bcm283x-rpi-usb-host.dtsi"
+
+#include <dt-bindings/interrupt-controller/irq.h>
+#include <dt-bindings/clock/bcm2835.h>
+
+#define ALT(x) BCM2835_FSEL_ALT ## x
+#define DIR(x) BCM2835_FSEL_GPIO_ ## x
+#define PULL(x) BCM2835_PUD_ ## x
+
+
+/ {
+	compatible = "raspberrypi,cm3", "brcm,bcm2837";
+	model = "Raspberry Pi Compute Module 3";
+
+	chosen {
+		stdout-path = "serial0:115200n8";
+	};
+
+	memory {
+		reg = <0 0x40000000>;
+	};
+
+	/delete-node/ leds;
+	/delete-node/ cpus;
+
+	expgpio: expgpio {
+                compatible = "brcm,bcm2835-expgpio";
+                gpio-controller;
+		#gpio-cells = <2>;
+		firmware = <&firmware>;
+                status = "okay";
+        };
+
+	/*vchiq: vchiq {
+		compatible = "brcm,bcm2835-vchiq";
+		reg = <0x7e00b840 0xf>;
+		interrupts = <0 2>;
+		cache-line-size = <32>;
+		firmware = <&firmware>;
+        };*/
+	
+	cpus: cpus {
+		#address-cells = <1>;
+                #size-cells = <0>;
+		
+		v8_cpu0: cpu@0 {
+			device_type = "cpu";
+                        compatible = "arm,cortex-a53", "arm,armv8";
+                        reg = <0>;
+                        clock-frequency = <1200000000>;
+		};
+
+	        v8_cpu1: cpu@1 {
+			device_type = "cpu";
+                        compatible = "arm,cortex-a53", "arm,armv8";
+                        reg = <1>;
+                        clock-frequency = <1200000000>;
+                        enable-method = "spin-table";
+			cpu-release-addr = <0x0 0xe0>;
+                };
+
+                v8_cpu2: cpu@2 {
+                        device_type = "cpu";
+                        compatible = "arm,cortex-a53", "arm,armv8";
+			reg = <2>;
+                        clock-frequency = <1200000000>;
+			enable-method = "spin-table";
+                        cpu-release-addr = <0x0 0xe8>;
+		};
+
+                v8_cpu3: cpu@3 {
+                        device_type = "cpu";
+			compatible = "arm,cortex-a53", "arm,armv8";
+                        reg = <3>;
+                        clock-frequency = <1200000000>;
+			enable-method = "spin-table";
+                        cpu-release-addr = <0x0 0xf0>;
+                };
+	};
+
+	soc {
+		syscon@40000000 {
+			compatible = "brcm,bcm2836-arm-local", "syscon";
+			reg = <0x40000000 0x100>;
+		};
+		/delete-node/ sdhci@7e300000;
+		/*mmc1: mmc@7e300000 {
+			compatible = "brcm,bcm2835-mmc";
+			pinctrl-names = "default";
+			pinctrl-0 = <&sdio_pins>;
+			reg = <0x7e300000 0x100>;
+			interrupts = <2 30>;
+			clocks = <&clocks BCM2835_CLOCK_EMMC>;
+			dmas = <&dma 11>,
+			<&dma 11>;
+   			dma-names = "tx", "rx";
+			status = "okay";
+		};*/
+
+		wifi_pwrseq: wifi_pwrseq {
+			compatible = "mmc-pwrseq-sd8787";
+			reset-gpios = <&gpio 45 GPIO_ACTIVE_LOW>;
+			powerdown-gpios = <&gpio 45 GPIO_ACTIVE_LOW>;
+		};
+		
+		sdhci: sdhci@7e300000 {
+			compatible = "brcm,bcm2835-sdhci";
+			pinctrl-names = "default";
+			pinctrl-0 = <&sdio_pins>;
+			reg = <0x7e300000 0x100>;
+			interrupts = <2 30>;
+			clocks = <&clocks BCM2835_CLOCK_EMMC>;
+			bus-width = <4>;
+			max-frequency = <20000000>;
+			mmc-pwrseq = <&wifi_pwrseq>;
+			status = "okay";
+			removable;
+		};
+
+	
+		/delete-node/ mmc@7e202000;
+		sdhost: mmc@7e202000 {
+			compatible = "brcm,bcm2835-sdhost";
+			reg = <0x7e202000 0x100>;
+			interrupts = <2 24>;
+			clocks = <&clocks BCM2835_CLOCK_VPU>;
+			dmas = <&dma 13>;
+			dma-names = "rx-tx";
+			pinctrl-names = "default";
+			pinctrl-0 = <&sdhost_pins>;
+			status = "okay";
+			bus-width = <4>;
+			brcm,overclock-50 = <50>;
+			brcm,pio-limit = <1>;
+			non-removable;
+		};
+	};
+
+
+};
+
+
+&gpio {
+
+        spi0_pins: spi0_pins {
+                brcm,pins = <9 10 11>;
+                brcm,function = <ALT(0)>;
+        };
+
+        spi0_cs_pins: spi0_cs_pins {
+                brcm,pins = <8>;
+                brcm,function = <DIR(OUT)>;
+        };
+
+        tft_pins: tft_pins {
+                brcm,pins = <7>;
+                brcm,function = <DIR(IN)>;
+                brcm,pull = <PULL(UP)>;
+        };
+
+        sdio_pins: sdio_pins {
+		brcm,pins = <22 23 24 25 26 27>;
+                brcm,function = <ALT(3)>;
+                brcm,pull = <PULL(OFF) PULL(UP) PULL(UP) PULL(UP) PULL(UP) PULL(UP)>;
+        };
+
+	sdhost_pins: sdhost_pins {
+		brcm,pins = <48 49 50 51 52 53>;
+                brcm,function = <ALT(0)>;
+                brcm,pull = <PULL(UP) PULL(UP) PULL(UP) PULL(UP) PULL(UP) PULL(UP)>;
+        };
+
+	blue_pins: blue_pins {
+		brcm,pins = <14 15 16 17>;
+		brcm,function = <ALT(0) ALT(0) ALT(3) ALT(3)>;
+	};
+		
+
+};
+
+
+&uart0 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&blue_pins>;
+        status = "okay";
+};
+
+&uart1 {
+	status = "disabled";
+};
+
+&spi { 
+
+        pinctrl-names = "default";
+	pinctrl-0 = <&spi0_pins &spi0_cs_pins>;
+        cs-gpios = <&gpio 8 GPIO_ACTIVE_LOW>;
+      	dmas = <&dma 6>, <&dma 7>;
+	dma-names = "tx", "rx";
+        status = "okay";
+
+        /delete-node/ spidev@0;
+      	/delete-node/ spidev@1;
+
+	touchscreen: tinyft8@0{
+                compatible = "ftdi,ft8xx";
+      	        reg = <0>;
+                pinctrl-names = "default";
+		pinctrl-0 = <&tft_pins>;
+                spi-max-frequency = <100000000>;
+                interrupt-parent = <&gpio>;
+		interrupts = <7 IRQ_TYPE_EDGE_FALLING>;
+		irq-gpios = <&gpio 7 GPIO_ACTIVE_HIGH>;
+                touchscreen-size-x = <320>;
+                touchscreen-size-y = <240>;
+                status = "okay";
+        };
+
+};
+
+&pwm {
+        status = "disabled";
+};
+
+&hdmi {
+       hpd-gpios = <&expgpio 0 GPIO_ACTIVE_LOW>;
+       status = "okay";
+};
+
+&i2c2 {
+      status = "okay";
+};
+
+&clocks {
+        claim-clocks = <
+                     BCM2835_PLLD_DSI0
+		     BCM2835_PLLD_DSI1
+                     BCM2835_PLLH_AUX
+                     BCM2835_PLLH_PIX
+                     >;
+};

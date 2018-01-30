@@ -1,0 +1,13 @@
+diff --git a/arch/arm/boot/dts/bcm270x.dtsi b/arch/arm/boot/dts/bcm270x.dtsi
+index a3544c1f5..6063076ee 100644
+--- a/arch/arm/boot/dts/bcm270x.dtsi
++++ b/arch/arm/boot/dts/bcm270x.dtsi
+@@ -64,7 +64,7 @@
+ 			status = "disabled";
+ 		};
+ 
+-		/delete-node/ sdhci@7e300000;
++		// /delete-node/ sdhci@7e300000;
+ 
+ 		mmc: mmc@7e300000 {
+ 			compatible = "brcm,bcm2835-mmc";
