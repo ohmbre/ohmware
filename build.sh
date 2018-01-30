@@ -1,5 +1,4 @@
 #!/bin/bash
-
 remote_addr=ohmbre #10.0.0.3
 arch=arm64
 gccarch=aarch64
@@ -8,7 +7,8 @@ dts_subdir=dts/broadcom
 kernel=Image
 tree=ohmbre-4.15.y
 base_tree=rpi-4.15.y
-this_dir=`dirname $0`
+base_url=https://github.com/raspberrypi/linux.git
+this_dir=$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )
 blds_dir=$this_dir/build
 wrks_dir=$this_dir/.work
 uppers_dir=$this_dir/.uppers
@@ -38,8 +38,12 @@ mkdir -p $dist_dir
 setup() {   
     mkdir -p $src_dir
     mkdir -p $wrk_dir
+    mkdir -p $blds_dir
     rm -rf $upper_dir
     mkdir -p $upper_dir
+    if [ ! -d $base_src_dir ]; then
+	git clone -b $base_tree $base_url $base_tree --depth=1
+    fi
 
     umount $src_dir > /dev/null 2>&1 || /bin/true
     [[ $(findmnt -M "$src_dir") ]] || mount -t overlay overlay -o lowerdir=$this_dir/overlay:$base_src_dir,upperdir=$upper_dir,workdir=$wrk_dir $src_dir
