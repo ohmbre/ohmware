@@ -1,0 +1,4 @@
+[submodule "rpi-4.15.y"]
+	path = rpi-4.15.y
+	url = https://github.com/raspberrypi/linux.git
+	branch = rpi-4.15.y
