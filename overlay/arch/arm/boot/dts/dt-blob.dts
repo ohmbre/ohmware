@@ -17,20 +17,18 @@
 			pin@p16 { function = "uart0";  termination = "no_pulling"; }; // TX uart0
 			pin@p17 { function = "uart0";  termination = "no_pulling"; }; // RX uart0
 				
-			pin@p22 { function = "emmc"; termination = "no_pulling";   drive_strength_mA = < 16 >; }; 
-			pin@p23 { function = "emmc"; termination = "pull_up";  drive_strength_mA = < 16 >; }; 
-			pin@p24 { function = "emmc"; termination = "pull_up";  drive_strength_mA = < 16 >; }; 
-			pin@p25 { function = "emmc"; ermination = "pull_up";   drive_strength_mA = < 16 >; }; 
-			pin@p26 { function = "emmc"; termination = "pull_up";  drive_strength_mA = < 16 >; }; 
-			pin@p27 { function = "emmc"; termination = "pull_up";  drive_strength_mA = < 16 >; };
+			pin@p22 { function = "emmc"; termination = "no_pulling";   drive_strength_mA = < 8 >; }; 
+			pin@p23 { function = "emmc"; termination = "pull_up";  drive_strength_mA = < 8 >; }; 
+			pin@p24 { function = "emmc"; termination = "pull_up";  drive_strength_mA = < 8 >; }; 
+			pin@p25 { function = "emmc"; ermination = "pull_up";   drive_strength_mA = < 8 >; }; 
+			pin@p26 { function = "emmc"; termination = "pull_up";  drive_strength_mA = < 8 >; }; 
+			pin@p27 { function = "emmc"; termination = "pull_up";  drive_strength_mA = < 8 >; };
 				
-			pin@p45 { function = "output"; termination = "no_pulling"; polarity = "active_low"; startup_state = "active";};
-			/*pin@p22 { function = "sdcard"; termination = "pull_up"; drive_strength_mA = < 8 >; };
-			pin@p23 { function = "sdcard"; termination = "pull_up";    drive_strength_mA = < 8 >; };
-			pin@p24 { function = "sdcard"; termination = "pull_up";    drive_strength_mA = < 8 >; };
-			pin@p25 { function = "sdcard"; termination = "pull_up";    drive_strength_mA = < 8 >; };
-			pin@p26 { function = "sdcard"; termination = "pull_up";    drive_strength_mA = < 8 >; };
-			pin@p27 { function = "sdcard"; termination = "pull_up";    drive_strength_mA = < 8 >; };*/
+			pin@p33 { function = "output"; termination = "no_pulling"; polarity = "active_low"; startup_state = "active";};
+
+			pin@p36 { function = "uart0";  termination = "no_pulling"; drive_strength_mA = < 8 >;}; // TXD0 for debugging
+			pin@p37 { function = "uart0";  termination = "pull_up"; drive_strength_mA = < 8 >;}; // RXD0 for debugging
+				
 			pin@p46 { function = "input";   termination = "pull_up";    }; // gpio expander
 			pin@p47 { function = "input";   termination = "pull_up";    }; // gpio expander				
 			pin@p48 { function = "sdcard"; termination = "pull_up";    drive_strength_mA = < 8 >; };
@@ -39,12 +37,6 @@
 			pin@p51 { function = "sdcard"; termination = "pull_up";    drive_strength_mA = < 8 >; };
 			pin@p52 { function = "sdcard"; termination = "pull_up";    drive_strength_mA = < 8 >; };
 			pin@p53 { function = "sdcard"; termination = "pull_up";    drive_strength_mA = < 8 >; };
-			        /*pin@p48 { function = "emmc"; termination = "pull_up"; drive_strength_mA = < 8 >; }; 
-			pin@p49 { function = "emmc"; termination = "pull_up"; drive_strength_mA = < 8 >; }; 
-			pin@p50 { function = "emmc"; termination = "pull_up"; drive_strength_mA = < 8 >; }; 
-			pin@p51 { function = "emmc"; termination = "pull_up"; drive_strength_mA = < 8 >; }; 
-				pin@p52 { function = "emmc"; termination = "pull_up"; drive_strength_mA = < 8 >; };
-			pin@p53 { function = "emmc"; termination = "pull_up"; drive_strength_mA = < 8 >; };*/
 				
 			pin@p128 { function = "input";  termination = "no_pulling"; polarity = "active_low"; }; // Hotplug
 			pin@p129 { function = "output"; termination = "no_pulling"; polarity = "active_low"; }; // EMMC_ENABLE_N

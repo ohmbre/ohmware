@@ -1,9 +1,6 @@
 [all]
 kernel=ohmbre.img
 device_tree=ohmbre.dtb
-#initramfs init.cpio.gz followkernel
-#ramfsfile=init.cpio.gz
-#ramfsaddr=-1
 
 avoid_pwm_pll=1
 gpu_mem=32

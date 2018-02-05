@@ -1,0 +1,26 @@
+// SPDX-License-Identifier: GPL-2.0
+/dts-v1/;
+#include "ohmbre.dts"
+
+/ {
+	chosen { // lets do this 4 different ways to make sure we appease the early uart gods
+		stdout-path = "serial@7e201000:115200n8";
+		bootargs = "earlycon=pl011,0x3f201000,115200n8 earlyprintk console=ttyAMA0,115200";
+	};
+
+};
+
+&blue_pins {
+	brcm,pins = <36 37>;
+	brcm,function = <ALT(2) ALT(2)>;
+};
+
+&gpio {
+	/delete-node/ gateout_pins;
+	gateout_pins: gateout_pins {
+		brcm,pins = <39 38 14 15 35 34>;
+		brcm,function = <DIR(OUT)>;
+		brcm,pull = <PULL(UP)>;
+	};
+};
+

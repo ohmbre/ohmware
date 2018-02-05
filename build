@@ -9,7 +9,7 @@ tree=ohmbre-4.15.y
 base_tree=rpi-4.15.y
 base_url=https://github.com/raspberrypi/linux.git
 this_dir=$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )
-blds_dir=$this_dir/build
+blds_dir=$this_dir/builds
 wrks_dir=$this_dir/.work
 uppers_dir=$this_dir/.uppers
 base_src_dir=$this_dir/$base_tree
@@ -71,7 +71,7 @@ config() {
 
 build() {
     $make -j10
-    sudo dtc -I dts -O dtb -o $bld_dir/arch/$arch/boot/$dts_subdir/dt-blob.bin $src_dir/arch/$arch/boot/$dts_subdir/dt-blob.dts
+    dtc -q -I dts -O dtb -o $bld_dir/arch/$arch/boot/$dts_subdir/dt-blob.bin $src_dir/arch/$arch/boot/$dts_subdir/dt-blob.dts
     version=`$make -f $bld_dir/Makefile kernelrelease 2> /dev/null`
     echo "built version $version"
     return 0
@@ -84,9 +84,10 @@ dist_modules() {
 
 dist() {
     cp $bld_dir/arch/$arch/boot/$dts_subdir/ohmbre.dtb $dist_dir/boot/ohmbre.dtb
+    cp $bld_dir/arch/$arch/boot/$dts_subdir/debug.dtb $dist_dir/boot/debug.dtb
     cp $bld_dir/arch/$arch/boot/$kernel $dist_dir/boot/ohmbre.img
-    cp $src_dir/arch/$arch/boot/config.txt $bld_dir/arch/$arch/boot/config.txt
-    cp $src_dir/arch/$arch/boot/cmdline.txt $bld_dir/arch/$arch/boot/cmdline.txt
+    cp $src_dir/arch/$arch/boot/config.txt $dist_dir/boot/config.txt
+    cp $src_dir/arch/$arch/boot/cmdline.txt $dist_dir/boot/cmdline.txt
     cp $bld_dir/arch/$arch/boot/$dts_subdir/dt-blob.bin $dist_dir/boot/dt-blob.bin
     #scp -r $INSTALL_PATH/$tree/* $remote_ip:/boot/$tree/
     
@@ -113,7 +114,7 @@ do_dist_modules=false
 do_firmware=false
 do_env=false
 
-while getopts ":cbmkfe" opt; do
+while getopts ":cbdmfe" opt; do
     case ${opt} in
 	c ) do_config=true;;
 	b ) do_build=true;;

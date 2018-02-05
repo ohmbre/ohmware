@@ -6,6 +6,7 @@
 
 #include <dt-bindings/interrupt-controller/irq.h>
 #include <dt-bindings/clock/bcm2835.h>
+#include <dt-bindings/input/linux-event-codes.h>
 
 #define ALT(x) BCM2835_FSEL_ALT ## x
 #define DIR(x) BCM2835_FSEL_GPIO_ ## x
@@ -16,9 +17,7 @@
 	compatible = "raspberrypi,cm3", "brcm,bcm2837";
 	model = "Raspberry Pi Compute Module 3";
 
-	chosen {
-		stdout-path = "serial0:115200n8";
-	};
+	/delete-node/ chosen;
 
 	memory {
 		reg = <0 0x40000000>;
@@ -87,24 +86,76 @@
 			compatible = "brcm,bcm2836-arm-local", "syscon";
 			reg = <0x40000000 0x100>;
 		};
-		/delete-node/ sdhci@7e300000;
-		/*mmc1: mmc@7e300000 {
-			compatible = "brcm,bcm2835-mmc";
-			pinctrl-names = "default";
-			pinctrl-0 = <&sdio_pins>;
-			reg = <0x7e300000 0x100>;
-			interrupts = <2 30>;
-			clocks = <&clocks BCM2835_CLOCK_EMMC>;
-			dmas = <&dma 11>,
-			<&dma 11>;
-   			dma-names = "tx", "rx";
-			status = "okay";
-		};*/
 
+		rotary@0 {
+			compatible = "rotary-encoder";
+			gpios = <&gpio 45 GPIO_ACTIVE_LOW>, <&gpio 44 GPIO_ACTIVE_LOW>;
+			linux,axis = <0>;
+			rotary-encoder,relative-axis;
+			rotary-encoder,encoding = "gray";
+			pinctrl-names = "default";
+			pinctrl-0 = <&encoder_pins>;
+		};
+	
+		input_gates {
+			pinctrl-names = "default";
+			pinctrl-0 = <&gatein_pins>;
+		};
+		
+		gpio-keys {
+			compatible = "gpio-keys";
+			pinctrl-names = "default";
+			pinctrl-0 = <&gateout_pins &gatein_pins>;
+			
+			gate-in-1 {
+				label = "gate in 1";
+				linux,code = <BTN_TRIGGER_HAPPY1>;
+				gpios = <&gpio 3 GPIO_ACTIVE_HIGH>;
+			};
+			
+			gate-in-2 {
+				label = "gate in 2";
+				linux,code = <BTN_TRIGGER_HAPPY2>;
+				gpios = <&gpio 4 GPIO_ACTIVE_HIGH>;
+			};
+			
+			gate-in-3 {
+				label = "gate in 3";
+				linux,code = <BTN_TRIGGER_HAPPY3>;
+				gpios = <&gpio 5 GPIO_ACTIVE_HIGH>;
+			};
+			
+			gate-in-4 {
+				label = "gate in 4";
+				linux,code = <BTN_TRIGGER_HAPPY4>;
+				gpios = <&gpio 12 GPIO_ACTIVE_HIGH>;
+			};
+			
+			gate-in-5 {
+				label = "gate in 5";
+				linux,code = <BTN_TRIGGER_HAPPY5>;
+				gpios = <&gpio 13 GPIO_ACTIVE_HIGH>;
+			};
+			
+			gate-in-6 {
+				label = "gate in 6";
+				linux,code = <BTN_TRIGGER_HAPPY6>;
+				gpios = <&gpio 32 GPIO_ACTIVE_HIGH>;
+			};
+
+			click {
+				label = "encoder button";
+				linux,code = <BTN_SELECT>;
+				gpios = <&gpio 40 GPIO_ACTIVE_LOW>;
+				pinctrl-names = "default";
+				pinctrl-0 = <&button_pin>;
+			};
+		};
+		
+		/delete-node/ sdhci@7e300000;
 		wifi_pwrseq: wifi_pwrseq {
-			compatible = "mmc-pwrseq-sd8787";
-			reset-gpios = <&gpio 45 GPIO_ACTIVE_LOW>;
-			powerdown-gpios = <&gpio 45 GPIO_ACTIVE_LOW>;
+			compatible = "mmc-pwrseq-emmc";
+			reset-gpios = <&gpio 33 GPIO_ACTIVE_LOW>;
 		};
 		
 		sdhci: sdhci@7e300000 {
@@ -115,7 +166,7 @@
 			interrupts = <2 30>;
 			clocks = <&clocks BCM2835_CLOCK_EMMC>;
 			bus-width = <4>;
-			max-frequency = <20000000>;
+			max-frequency = <50000000>;
 			mmc-pwrseq = <&wifi_pwrseq>;
 			status = "okay";
 			removable;
@@ -178,14 +229,38 @@
 		brcm,pins = <14 15 16 17>;
 		brcm,function = <ALT(0) ALT(0) ALT(3) ALT(3)>;
 	};
-		
 
+	encoder_pins: encoder_pins {
+		brcm,pins = <44 45>;
+		brcm,function = <DIR(IN)>;
+		brcm,pull = <PULL(UP)>;
+	};
+
+	button_pin: button_pin {
+		brcm,pins = <40>;
+		brcm,function = <DIR(IN)>;
+		brcm,pull = <PULL(UP)>;
+	};
+
+	gatein_pins: gatein_pins {
+		brcm,pins = <3 4 5 12 13 32>;
+		brcm,function = <DIR(IN)>;
+		brcm,pull = <PULL(UP)>;
+	};
+		
+	gateout_pins: gateout_pins {
+		brcm,pins = <39 38 37 36 35 34>;
+		brcm,function = <DIR(OUT)>;
+		brcm,pull = <PULL(UP)>;
+	};	
 };
 
 
 &uart0 {
 	pinctrl-names = "default";
 	pinctrl-0 = <&blue_pins>;
+	clock-frequency = <48000000>;
+	uart-has-rtscts;
         status = "okay";
 };
 
@@ -226,8 +301,12 @@
 };
 
 &hdmi {
-       hpd-gpios = <&expgpio 0 GPIO_ACTIVE_LOW>;
-       status = "okay";
+	hpd-gpios = <&expgpio 0 GPIO_ACTIVE_LOW>;
+	status = "okay";
+};
+
+&i2c1 {
+	status = "disabled";
 };
 
 &i2c2 {
