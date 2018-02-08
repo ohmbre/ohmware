@@ -5,12 +5,13 @@
 
 
 release=4.15.0-ohm+
-host=10.0.0.11
+host=o
 mntpt="./mnt"
 set -e
 
 if [ -b /dev/disk/by-label/OHMBOOT ] && [ -b /dev/disk/by-label/ohmsystem ]; then
     echo "installing to sd card"
+    mkdir -p $mntpt
     mkdir -p $mntpt/b
     mkdir -p $mntpt/s
     [[ $(findmnt -S LABEL=OHMBOOT -M $mntpt/b) ]] || mount /dev/disk/by-label/OHMBOOT $mntpt/b

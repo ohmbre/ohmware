@@ -55,7 +55,7 @@ from subprocess import *
 pins = check_output("ssh o 'cat /sys/kernel/debug/pinctrl/3f200000.gpio/pins'",shell=True)
 for line in pins.split('\n')[1:]:
     if not line: continue
-    _,pin,_,_,fn,_ = line.split(' ',5)
+    _,pin,_,_,fn,_,val,_ = line.split(' ',7)
     if int(pin) <= 45:
-        print(pin,funcs[pin][fn])
+        print("pin:%s\tfunc:%s\tval:%s"%(pin,funcs[pin][fn],val))
     

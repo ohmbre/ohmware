@@ -11,11 +11,13 @@
 					startup_state = "inactive";
 					function = "input";
 				};
-
-			pin@p14 { function = "uart0";  termination = "no_pulling"; }; // TX uart0
-			pin@p15 { function = "uart0";  termination = "no_pulling"; }; // RX uart0
-			pin@p16 { function = "uart0";  termination = "no_pulling"; }; // TX uart0
-			pin@p17 { function = "uart0";  termination = "no_pulling"; }; // RX uart0
+			pin@p0 { function = "i2c0"; termination = "pull_up"; };
+			pin@p1 { function = "i2c0"; termination = "pull_up"; };
+			pin@p2 { function = "output"; termination = "no_pulling"; polarity = "active_high"; startup_state = "active";};
+			pin@p14 { function = "uart0";  termination = "no_pulling"; };
+			pin@p15 { function = "uart0";  termination = "no_pulling"; };
+			pin@p16 { function = "uart0";  termination = "no_pulling"; };
+			pin@p17 { function = "uart0";  termination = "no_pulling"; };
 				
 			pin@p22 { function = "emmc"; termination = "no_pulling";   drive_strength_mA = < 8 >; }; 
 			pin@p23 { function = "emmc"; termination = "pull_up";  drive_strength_mA = < 8 >; }; 

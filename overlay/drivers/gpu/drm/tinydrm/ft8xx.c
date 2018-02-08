@@ -49,8 +49,10 @@ u8 ohm_logo[] = {
 #define NBUFFERS 1
 #define CLKSYNC_SAMPLES 50
 
-#define PREFER_FORMAT DRM_FORMAT_XRGB8888
+#define PREFER_FORMAT DRM_FORMAT_RGB888
 #define PREFER_DEPTH 24
+
+#define HW_PCLK 12
 
 #define HW_HCYCLE 618UL // recommended 408 plus extra we need for xrbg888 gpu drawing
 #define HW_HOFFSET 70UL
@@ -391,6 +393,7 @@ int ft8dl_write(struct ft8device *ft8) {
 		pseq[2] = 0;
 	case DRM_FORMAT_XRGB8888:
 	case DRM_FORMAT_ARGB8888:
+	case DRM_FORMAT_RGB888:
 		DL(BITMAP_LAYOUT(L8, W*ft8->bpp, H));
 		DL(BITMAP_LAYOUT_H((W*ft8->bpp) >> 10, H >> 10));
 		DL(BITMAP_SIZE(NEAREST, BORDER, BORDER, 1, H));
@@ -592,7 +595,8 @@ static const struct drm_framebuffer_funcs ft8fb_funcs = {
 
 static const uint32_t ft8formats[] = {
 //	DRM_FORMAT_RGB565,
-	DRM_FORMAT_XRGB8888,
+	DRM_FORMAT_RGB888,
+//	DRM_FORMAT_XRGB8888,
 //	DRM_FORMAT_ARGB8888,
 //	DRM_FORMAT_ABGR8888,
 //	DRM_FORMAT_XBGR8888,
@@ -905,7 +909,7 @@ static int ft8chip_powerup(struct ft8device *ft8) {
 	cmds[0] = CMD_SETROTATE;
 	cmds[1] = ROTATION;
 	ft8copro_cmds(ft8, cmds, 3);
-	WREG(PCLK, 6);
+	WREG(PCLK, HW_PCLK);
 
 	frame = RREG(FRAMES);
 	while (RREG(FRAMES) == frame);
@@ -966,7 +970,7 @@ static int ft8probe(struct spi_device *spi) {
 	if (ret)
 		return ret;
 
-	// theoretical maz zlib out buffer, plus 8 bytes ft8 command overhead
+	// theoretical max zlib out buffer, plus 8 bytes ft8 command overhead
 	//ft8->zx_buf = devm_kmalloc(dev, H * W + H * W / 1000 + 13 + 8, GFP_KERNEL);
 	//wsize = zlib_deflate_workspacesize(MAX_WBITS, MAX_MEM_LEVEL);
 	//ft8->zstream.workspace = devm_kzalloc(dev, wsize, GFP_KERNEL);
