@@ -1,0 +1,11 @@
+diff --git a/sound/soc/codecs/Makefile b/sound/soc/codecs/Makefile
+index c8dfbdc75..a28e8d3e1 100644
+--- a/sound/soc/codecs/Makefile
++++ b/sound/soc/codecs/Makefile
+@@ -479,3 +479,6 @@ obj-$(CONFIG_SND_SOC_DIO2125)	+= snd-soc-dio2125.o
+ obj-$(CONFIG_SND_SOC_MAX9877)	+= snd-soc-max9877.o
+ obj-$(CONFIG_SND_SOC_MAX98504)	+= snd-soc-max98504.o
+ obj-$(CONFIG_SND_SOC_TPA6130A2)	+= snd-soc-tpa6130a2.o
++
++snd-soc-ak4558-objs := ak4558.o
++obj-$(CONFIG_SND_SOC)    += snd-soc-ak4558.o

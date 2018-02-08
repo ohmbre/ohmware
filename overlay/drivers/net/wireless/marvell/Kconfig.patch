@@ -1,0 +1,12 @@
+diff --git a/drivers/net/wireless/marvell/Kconfig b/drivers/net/wireless/marvell/Kconfig
+index 4938c7ec0..4bac18e9d 100644
+--- a/drivers/net/wireless/marvell/Kconfig
++++ b/drivers/net/wireless/marvell/Kconfig
+@@ -14,6 +14,7 @@ if WLAN_VENDOR_MARVELL
+ source "drivers/net/wireless/marvell/libertas/Kconfig"
+ source "drivers/net/wireless/marvell/libertas_tf/Kconfig"
+ source "drivers/net/wireless/marvell/mwifiex/Kconfig"
++source "drivers/net/wireless/marvell/lrdmwl/Kconfig"
+ 
+ config MWL8K
+ 	tristate "Marvell 88W8xxx PCI/PCIe Wireless support"
