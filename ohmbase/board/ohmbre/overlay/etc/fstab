@@ -1,7 +1,7 @@
 /dev/mmcblk0p2  /               ext4    rw              0       1
 /dev/mmcblk0p1  /boot           vfat    rw              0       2
 /dev/mmcblk0p3  none            swap    defaults,sw,pri=1        0       0
-/dev/mmcblk0p4  /data           ext4    rw        0       3
+/dev/mmcblk0p4  /ohmowner           ext4    rw        0       3
 proc            /proc           proc    defaults        0       0
 devpts          /dev/pts        devpts  defaults,gid=5,mode=620,ptmxmode=0666   0       0
 tmpfs           /dev/shm        tmpfs   mode=0777       0       0
