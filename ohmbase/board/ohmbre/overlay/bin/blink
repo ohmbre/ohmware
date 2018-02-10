@@ -1,0 +1,12 @@
+#!/bin/bash
+
+echo 38 > /sys/class/gpio/export
+echo out > /sys/class/gpio/gpio38/direction
+while true; do
+	echo 1 > /sys/class/gpio/gpio38/value
+	sleep 1
+	echo 0 > /sys/class/gpio/gpio38/value
+	sleep 1
+	dmesg > /kernel.log
+	sync
+done

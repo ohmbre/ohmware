@@ -1,0 +1,16 @@
+#!/bin/sh
+
+
+fork_and_log() {
+	prepend=`basename $1`
+	nohup $1 start 2>&1 | while read line; do echo "($prepend) $line" >> /var/log/rcS; done
+}
+
+for i in /etc/init.d/S??* ;do
+
+     	# Ignore dangling symlinks (if any).
+     	[ ! -f "$i" ] && continue
+	fork_and_log $i &
+
+done
+

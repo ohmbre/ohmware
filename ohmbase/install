@@ -1,0 +1,17 @@
+#!/bin/bash
+host=10.0.0.11
+mntpt="./mnt"
+set -e
+
+if [ -b /dev/disk/by-label/ohmsystem ]; then
+    mkdir -p $mntpt
+    mkdir -p $mntpt/s
+    [[ $(findmnt -S LABEL=ohmsystem -M $mntpt/s) ]] || mount /dev/disk/by-label/ohmsystem $mntpt/s
+    rm -rf $mntpt/s/*
+    tar xf output/images/rootfs.tar -C $mntpt/s
+    sync
+    umount -A $mntpt/s
+else
+    cat output/images/rootfs.tar | ssh $host '(cd /; tar xf - )'
+    ssh $host sync
+fi

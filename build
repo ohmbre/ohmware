@@ -5,18 +5,17 @@ gccarch=aarch64
 config=bcmrpi3_defconfig
 dts_subdir=dts/broadcom
 kernel=Image
-tree=ohmbre-4.15.y
-base_tree=rpi-4.15.y
-base_url=https://github.com/raspberrypi/linux.git
+upstream_tree=rpi-4.15.y
+upstream_url=https://github.com/raspberrypi/linux.git
 this_dir=$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )
 blds_dir=$this_dir/builds
 wrks_dir=$this_dir/.work
 uppers_dir=$this_dir/.uppers
-base_src_dir=$this_dir/$base_tree
-src_dir=$this_dir/$tree
-bld_dir=$blds_dir/$tree
-wrk_dir=$wrks_dir/$tree
-upper_dir=$uppers_dir/$tree
+upstream_src_dir=$this_dir/$upstream_tree
+src_dir=$this_dir/kernel
+bld_dir=$blds_dir/kernel
+wrk_dir=$wrks_dir/kernel
+upper_dir=$uppers_dir/kernel
 dist_dir=$this_dir/dist
 echo "building in $bld_dir ..."
 make="make"
@@ -25,7 +24,7 @@ make="$make INSTALL_PATH=$dist_dir/boot"
 make="$make INSTALL_MOD_PATH=$dist_dir"
 make="$make KBUILD_OUTPUT=$bld_dir"
 make="$make ARCH=$arch"
-make="$make CROSS_COMPILE=/root/src/buildroot/output/host/opt/ext-toolchain/bin/$gccarch-linux-gnu-"
+make="$make CROSS_COMPILE=$this_dir/output/host/bin/$gccarch-ohm-linux-gnu-"
 make="$make INITRD=No"
 make="$make CCACHE_DIR=$build_dir/.ccache"
 make="$make -C $src_dir"
@@ -41,12 +40,12 @@ setup() {
     mkdir -p $blds_dir
     rm -rf $upper_dir
     mkdir -p $upper_dir
-    if [ ! -d $base_src_dir ]; then
-	git clone -b $base_tree $base_url $base_tree --depth=1
+    if [ ! -d $upstream_src_dir ]; then
+	git clone -b $upstream_tree $upstream_url $upstream_tree --depth=1
     fi
 
     umount $src_dir > /dev/null 2>&1 || /bin/true
-    [[ $(findmnt -M "$src_dir") ]] || mount -t overlay overlay -o lowerdir=$this_dir/overlay:$base_src_dir,upperdir=$upper_dir,workdir=$wrk_dir $src_dir
+    [[ $(findmnt -M "$src_dir") ]] || mount -t overlay overlay -o lowerdir=$this_dir/overlay:$upstream_src_dir,upperdir=$upper_dir,workdir=$wrk_dir $src_dir
     for f in $(find $src_dir -name \*.patch); do
 	patch $(dirname $f)/$(basename $f .patch) $f
     done
@@ -89,7 +88,6 @@ dist() {
     cp $src_dir/arch/$arch/boot/config.txt $dist_dir/boot/config.txt
     cp $src_dir/arch/$arch/boot/cmdline.txt $dist_dir/boot/cmdline.txt
     cp $bld_dir/arch/$arch/boot/$dts_subdir/dt-blob.bin $dist_dir/boot/dt-blob.bin
-    #scp -r $INSTALL_PATH/$tree/* $remote_ip:/boot/$tree/
     
     return 0
 }

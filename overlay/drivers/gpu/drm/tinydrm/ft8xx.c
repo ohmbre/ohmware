@@ -49,10 +49,10 @@ u8 ohm_logo[] = {
 #define NBUFFERS 1
 #define CLKSYNC_SAMPLES 50
 
-#define PREFER_FORMAT DRM_FORMAT_RGB888
-#define PREFER_DEPTH 24
+#define PREFER_FORMAT DRM_FORMAT_RGB565
+#define PREFER_DEPTH 16
 
-#define HW_PCLK 12
+#define HW_PCLK 6
 
 #define HW_HCYCLE 618UL // recommended 408 plus extra we need for xrbg888 gpu drawing
 #define HW_HOFFSET 70UL
@@ -66,7 +66,8 @@ u8 ohm_logo[] = {
 
 //define HW_VBLANK_NS 16253400UL
 #define ROTATION 0UL
-#define BRIGHTNESS 55
+#define BRIGHTNESS 128
+#define HW_PWM_HZ 613
 
 #define KILOS(b) (1024U*b)
 #define MEGAS(b) (1024U*KILOS(b))
@@ -83,12 +84,12 @@ u8 ohm_logo[] = {
 #define INT_CONVCOMPLETE 0x80UL
 #define INT_SWAP         0x01UL
 
-#define CMD_CALIBRATE		0xFFFFFF15UL
+#define CMD_CALIBRATE	      0xFFFFFF15UL
 #define CMD_DLSTART           0xFFFFFF00UL
 #define CMD_SWAP              0xFFFFFF01UL
 #define CMD_MEMZERO           0xFFFFFF1CUL
 #define CMD_INFLATE           0xFFFFFF22UL
-#define CMD_SETROTATE		0xFFFFFF36UL
+#define CMD_SETROTATE         0xFFFFFF36UL
 
 #define BORDER 0
 #define NEAREST 0
@@ -552,7 +553,6 @@ static int ft8fb_dirty(struct drm_framebuffer *fb,
 	struct ft8device *ft8 = container_of(tdev, struct ft8device, tinydrm);
 	struct drm_clip_rect clip;
 	struct drm_gem_cma_object *cma_obj = drm_fb_cma_get_gem_obj(fb, 0);
-	u8 cpp = fb->format->cpp[0];
 	int startpix,npix;
 
 	ft8->stats[DIRTIES]++;
@@ -575,7 +575,7 @@ static int ft8fb_dirty(struct drm_framebuffer *fb,
 	npix = W * (clip.y2 - clip.y1);
 	if (npix == 0) goto out_unlock;
 
-	ft8buf_transfer(ft8, cma_obj->vaddr + startpix * cpp, RAM(G) /*ft8->drawbuf*/, startpix * cpp, npix * cpp);
+	ft8buf_transfer(ft8, cma_obj->vaddr + startpix * ft8->bpp, RAM(G) /*ft8->drawbuf*/, startpix * ft8->bpp, npix * ft8->bpp);
 
 	// TODO: make the swap atomic
 
@@ -594,14 +594,14 @@ static const struct drm_framebuffer_funcs ft8fb_funcs = {
 
 
 static const uint32_t ft8formats[] = {
-//	DRM_FORMAT_RGB565,
+	DRM_FORMAT_RGB565,
 	DRM_FORMAT_RGB888,
-//	DRM_FORMAT_XRGB8888,
-//	DRM_FORMAT_ARGB8888,
-//	DRM_FORMAT_ABGR8888,
-//	DRM_FORMAT_XBGR8888,
-//	DRM_FORMAT_ARGB1555,
-//	DRM_FORMAT_XRGB1555
+	DRM_FORMAT_XRGB8888,
+	DRM_FORMAT_ARGB8888,
+	DRM_FORMAT_ABGR8888,
+	DRM_FORMAT_XBGR8888,
+	DRM_FORMAT_ARGB1555,
+	DRM_FORMAT_XRGB1555
 };
 
 static enum hrtimer_restart ft8vblank_isr(struct hrtimer *timer) {

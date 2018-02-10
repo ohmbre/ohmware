@@ -1,0 +1,7 @@
+config BR2_PACKAGE_MG
+	bool "'emacs'"
+	select BR2_PACKAGE_NCURSES
+	select BR2_PACKAGE_LIBITE
+	help
+	  'emacs'
+
