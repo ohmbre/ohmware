@@ -1,43 +1,52 @@
 #!/bin/bash
-remote_addr=ohmbre #10.0.0.3
-arch=arm64
-gccarch=aarch64
-config=bcmrpi3_defconfig
-dts_subdir=dts/broadcom
-kernel=Image
-upstream_tree=rpi-4.15.y
-upstream_url=https://github.com/raspberrypi/linux.git
-this_dir=$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )
-blds_dir=$this_dir/builds
-wrks_dir=$this_dir/.work
-uppers_dir=$this_dir/.uppers
-upstream_src_dir=$this_dir/$upstream_tree
-src_dir=$this_dir/kernel
-bld_dir=$blds_dir/kernel
-sbld_dir=$blds_dir/os
-wrk_dir=$wrks_dir/kernel
-upper_dir=$uppers_dir/kernel
-dist_dir=$this_dir/dist
-ohmbase_dir=$this_dir/ohmbase
 
-make="make"
+setvars() {
+    remote_addr=ohmbre #10.0.0.3
+    arch=arm64
+    gccarch=aarch64
+    kconfig=bcmrpi3_defconfig
+    dts_subdir=dts/broadcom
+    kernel=Image
+    upstream_tree=rpi-4.15.y
+    upstream_url=https://github.com/raspberrypi/linux.git
+    this_dir=$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )
+    blds_dir=$this_dir/builds
+    wrks_dir=$this_dir/.work
+    uppers_dir=$this_dir/.uppers
+    upstream_src_dir=$this_dir/$upstream_tree
+    ksrc_dir=$this_dir/kernel
+    kbld_dir=$blds_dir/kernel
+    sbld_dir=$blds_dir/os
+    wrk_dir=$wrks_dir/kernel
+    upper_dir=$uppers_dir/kernel
+    dist_dir=$this_dir/dist
+    ssrc_dir=$this_dir/ohmbase
 
-make="$make INSTALL_PATH=$dist_dir/boot"
-make="$make INSTALL_MOD_PATH=$dist_dir"
-make="$make KBUILD_OUTPUT=$bld_dir"
-make="$make ARCH=$arch"
-make="$make CROSS_COMPILE=$this_dir/output/host/bin/$gccarch-ohm-linux-gnu-"
-make="$make INITRD=No"
-make="$make CCACHE_DIR=$build_dir/.ccache"
-make="$make -C $src_dir"
+    kmake="make"
+    kmake="$make INSTALL_PATH=$dist_dir/boot"
+    kmake="$make INSTALL_MOD_PATH=$dist_dir"
+    kmake="$make KBUILD_OUTPUT=$bld_dir"
+    kmake="$make ARCH=$arch"
+    kmake="$make CROSS_COMPILE=$sbld_dir/output/host/bin/$gccarch-ohm-linux-gnu-"
+    kmake="$make INITRD=No"
+    kmake="$make CCACHE_DIR=$build_dir/.ccache"
+    kmake="$make -C $src_dir"
+    smake="make BR2_DL_DIR=$sbld_dir/dl BR2_EXTERNAL=$ssrc_dir --directory=$this_dir/buildroot O=$sbld_dir"
+}
 
-set -e
-shopt -s globstar
+kmake() {
+    $kmake $@
+}
 
-mkdir -p $dist_dir
+smake() {
+    $smake $@
+}
 
-setup() {   
-    mkdir -p $src_dir
+
+ksetup() {
+    setvars
+    mkdir -p $dist_dir
+    mkdir -p $ksrc_dir
     mkdir -p $wrk_dir
     mkdir -p $blds_dir
     rm -rf $upper_dir
@@ -46,111 +55,77 @@ setup() {
 	git clone -b $upstream_tree $upstream_url $upstream_tree --depth=1
     fi
 
-    umount $src_dir > /dev/null 2>&1 || /bin/true
-    [[ $(findmnt -M "$src_dir") ]] || mount -t overlay overlay -o lowerdir=$this_dir/overlay:$upstream_src_dir,upperdir=$upper_dir,workdir=$wrk_dir $src_dir
-    for f in $(find $src_dir -name \*.patch); do
+    umount $ksrc_dir > /dev/null 2>&1 || /bin/true
+    [[ $(findmnt -M "$ksrc_dir") ]] || mount -t overlay overlay -o lowerdir=$this_dir/overlay:$upstream_src_dir,upperdir=$upper_dir,workdir=$wrk_dir $ksrc_dir
+    for f in $(find $ksrc_dir -name \*.patch); do
 	patch $(dirname $f)/$(basename $f .patch) $f
     done
 
     return 0
 }
 
-config() {
+kconfig() {
+    ksetup
     echo "running with make command: $make"
-    $make $config
-    $make nconfig
-    $make savedefconfig
-    cp $bld_dir/defconfig $src_dir/arch/$arch/configs/$config
+    $kmake $config
+    $kmake nconfig
+    $kmake savedefconfig
+    cp $kbld_dir/defconfig $ksrc_dir/arch/$arch/configs/$kconfig
     echo "source directory is: $src_dir"
-    cd $src_dir
-    git diff arch/$arch/configs/$config > $this_dir/overlay/arch/$arch/configs/$config.patch
+    cd $ksrc_dir
+    git diff arch/$arch/configs/$kconfig > $this_dir/overlay/arch/$arch/configs/$kconfig.patch
     cd $this_dir
-    $make prepare
+    kmake prepare
     return 0
 }
 
-build() {
-    echo "building in $bld_dir ..."
-    echo "running with make command: $make"
-    $make -j10
-    dtc -q -I dts -O dtb -o $bld_dir/arch/$arch/boot/$dts_subdir/dt-blob.bin $src_dir/arch/$arch/boot/$dts_subdir/dt-blob.dts
+kbuild() {
+    ksetup
+    echo "building in $kbld_dir ..."
+    echo "running with make command: $kmake"
+    kmake -j10
+    dtc -q -I dts -O dtb -o $kbld_dir/arch/$arch/boot/$dts_subdir/dt-blob.bin $ksrc_dir/arch/$arch/boot/$dts_subdir/dt-blob.dts
     version=`$make -f $bld_dir/Makefile kernelrelease 2> /dev/null`
     echo "built version $version"
     return 0
 }
 
 dist_modules() {
-    echo "running with make command: $make"
-    $make -j10 modules_install
+    ksetup
+    echo "running with make command: $kmake"
+    kmake -j10 modules_install
     return 0
 }
 
 dist() {
-    cp $bld_dir/arch/$arch/boot/$dts_subdir/ohmbre.dtb $dist_dir/boot/ohmbre.dtb
-    cp $bld_dir/arch/$arch/boot/$dts_subdir/debug.dtb $dist_dir/boot/debug.dtb
-    cp $bld_dir/arch/$arch/boot/$kernel $dist_dir/boot/ohmbre.img
-    cp $src_dir/arch/$arch/boot/config.txt $dist_dir/boot/config.txt
-    cp $src_dir/arch/$arch/boot/cmdline.txt $dist_dir/boot/cmdline.txt
-    cp $bld_dir/arch/$arch/boot/$dts_subdir/dt-blob.bin $dist_dir/boot/dt-blob.bin
-    
-    return 0
+    setvars
+    cp $kbld_dir/arch/$arch/boot/$dts_subdir/ohmbre.dtb $dist_dir/boot/ohmbre.dtb
+    cp $kbld_dir/arch/$arch/boot/$dts_subdir/debug.dtb $dist_dir/boot/debug.dtb
+    cp $kbld_dir/arch/$arch/boot/$kernel $dist_dir/boot/ohmbre.img
+    cp $ksrc_dir/arch/$arch/boot/config.txt $dist_dir/boot/config.txt
+    cp $ksrc_dir/arch/$arch/boot/cmdline.txt $dist_dir/boot/cmdline.txt
+    cp $kbld_dir/arch/$arch/boot/$dts_subdir/dt-blob.bin $dist_dir/boot/dt-blob.bin
 }
 
 firmware() {
+    setvars
     wget -O $dist_dir/boot/bootcode.bin https://raw.githubusercontent.com/raspberrypi/firmware/next/boot/bootcode.bin
     wget -O $dist_dir/boot/fixup.dat https://raw.githubusercontent.com/raspberrypi/firmware/next/boot/fixup.dat
     wget -O $dist_dir/boot/start.elf https://raw.githubusercontent.com/raspberrypi/firmware/next/boot/start.elf
 }
 
-sysmake="make BR2_DL_DIR=$sbld_dir/dl BR2_EXTERNAL=$ohmbase_dir --directory=$this_dir/buildroot O=$sbld_dir"
+
 
 sysconfig() {
-    echo "running with make command: $sysmake"
-    $sysmake ohmbre_defconfig
-    $sysmake nconfig
-    $sysmake savedefconfig
+    setvars
+    echo "running with make command: $smake"
+    smake ohmbre_defconfig
+    smake nconfig
+    smake savedefconfig
 }
 
 system() {
-    $sysmake
+    setvars
+    echo "running with make command: $smake"
+    smake
 }
-
-exportenv() {
-    echo "WARNING: changing your env"
-    export make=$make
-    export sysmake=$sysmake
-}
-
-setup
-
-do_sysconfig=false
-do_system=false
-do_config=false
-do_build=false
-do_dist=false
-do_dist_modules=false
-do_firmware=false
-do_env=false
-
-while getopts ":xscbdmfe" opt; do
-    case ${opt} in
-	x ) do_sysconfig=true;;
-	s ) do_system=true;;
-	c ) do_config=true;;
-	b ) do_build=true;;
-	d ) do_dist=true;;
-	m ) do_dist_modules=true;;
-	f ) do_firmware=true;;
-	e ) do_env=true;;
-    esac
-done
-
-if [ $do_sysconfig = true ]; then sysconfig; fi
-if [ $do_system = true ]; then system; fi
-if [ $do_config = true ]; then config; fi
-if [ $do_build = true ]; then build; fi
-if [ $do_dist = true ]; then dist; fi
-if [ $do_dist_modules = true ]; then dist_modules; fi
-if [ $do_firmware = true ]; then firmware; fi
-if [ $do_env = true ]; then exportenv; fi
-
