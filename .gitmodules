@@ -2,3 +2,6 @@
 	path = overlay/drivers/net/wireless/marvell/lrdmwl
 	url = https://github.com/LairdCP/lrdmwl.git
 	branch = lrd-3.5.5.x
+[submodule "buildroot"]
+	path = buildroot
+	url = git://git.busybox.net/buildroot
