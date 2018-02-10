@@ -223,3 +223,4 @@ sdformat() {
 }
 
 alias krebuild="kbuild && kdist && kext && kinstall"
+alias ohmsweetohm="sconfig && sbuild && sinstall && kconfig && kbuild && kext && kdist"
