@@ -11,4 +11,17 @@ endef
 MESA3D_POST_PATCH_HOOKS += FT8XX_PATCH_HOOK
 MESA3D_GALLIUM_DRIVERS-$(BR2_PACKAGE_MESA3D_GALLIUM_DRIVER_VC4) = ft8xx vc4 virgl
 MESA3D_PLATFORMS += surfaceless
+MESA3D_PYTHON_INTERPRETER=$(HOST_DIR)/usr/bin/python2.7
+HOST_PYTHON_MAKO_NEEDS_HOST_PYTHON=python2
+MESA3D_DEPENDENCIES += host-python-setuptools host-python-markupsafe host-python-mako
 
+define MESA3D_USEMAKO_CONFIG_HOOK
+        cd $(HOST_PYTHON_SETUPTOOLS_BUILDDIR) && \
+		$(HOST_DIR)/usr/bin/python2.7 bootstrap.py && \
+		$(HOST_DIR)/usr/bin/python2.7 setup.py install
+	cd $(HOST_PYTHON_MARKUPSAFE_BUILDDIR) && \
+		$(HOST_DIR)/usr/bin/python2.7 setup.py install
+	cd $(HOST_PYTHON_MAKO_BUILDDIR) && $(HOST_DIR)/usr/bin/python2.7 setup.py install
+endef
+
+MESA3D_POST_CONFIGURE_HOOKS += MESA3D_USEMAKO_CONFIG_HOOK
