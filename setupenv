@@ -1,6 +1,7 @@
 #!/bin/bash
 
 
+
 setenv() {
 
     remote_addr=ohmbre #10.0.0.3
@@ -224,3 +225,4 @@ sdformat() {
 
 alias krebuild="kbuild && kdist && kext && kinstall"
 alias ohmsweetohm="sconfig && sbuild && sinstall && kconfig && kbuild && kext && kdist"
+cd "$( dirname "${BASH_SOURCE[0]}" )"
