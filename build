@@ -14,10 +14,12 @@ uppers_dir=$this_dir/.uppers
 upstream_src_dir=$this_dir/$upstream_tree
 src_dir=$this_dir/kernel
 bld_dir=$blds_dir/kernel
+sbld_dir=$blds_dir/os
 wrk_dir=$wrks_dir/kernel
 upper_dir=$uppers_dir/kernel
 dist_dir=$this_dir/dist
-echo "building in $bld_dir ..."
+ohmbase_dir=$this_dir/ohmbase
+
 make="make"
 
 make="$make INSTALL_PATH=$dist_dir/boot"
@@ -28,7 +30,7 @@ make="$make CROSS_COMPILE=$this_dir/output/host/bin/$gccarch-ohm-linux-gnu-"
 make="$make INITRD=No"
 make="$make CCACHE_DIR=$build_dir/.ccache"
 make="$make -C $src_dir"
-echo "running with make command: $make"
+
 set -e
 shopt -s globstar
 
@@ -54,13 +56,12 @@ setup() {
 }
 
 config() {
+    echo "running with make command: $make"
     $make $config
     $make nconfig
     $make savedefconfig
-    #echo "-- config changes below --"
-    #diff $bld_dir/defconfig $src_dir/arch/$arch/configs/$config
     cp $bld_dir/defconfig $src_dir/arch/$arch/configs/$config
-    echo $src_dir
+    echo "source directory is: $src_dir"
     cd $src_dir
     git diff arch/$arch/configs/$config > $this_dir/overlay/arch/$arch/configs/$config.patch
     cd $this_dir
@@ -69,6 +70,8 @@ config() {
 }
 
 build() {
+    echo "building in $bld_dir ..."
+    echo "running with make command: $make"
     $make -j10
     dtc -q -I dts -O dtb -o $bld_dir/arch/$arch/boot/$dts_subdir/dt-blob.bin $src_dir/arch/$arch/boot/$dts_subdir/dt-blob.dts
     version=`$make -f $bld_dir/Makefile kernelrelease 2> /dev/null`
@@ -77,6 +80,7 @@ build() {
 }
 
 dist_modules() {
+    echo "running with make command: $make"
     $make -j10 modules_install
     return 0
 }
@@ -98,13 +102,29 @@ firmware() {
     wget -O $dist_dir/boot/start.elf https://raw.githubusercontent.com/raspberrypi/firmware/next/boot/start.elf
 }
 
+sysmake="make BR2_DL_DIR=$sbld_dir/dl BR2_EXTERNAL=$ohmbase_dir --directory=$this_dir/buildroot O=$sbld_dir"
+
+sysconfig() {
+    echo "running with make command: $sysmake"
+    $sysmake ohmbre_defconfig
+    $sysmake nconfig
+    $sysmake savedefconfig
+}
+
+system() {
+    $sysmake
+}
+
 exportenv() {
     echo "WARNING: changing your env"
     export make=$make
+    export sysmake=$sysmake
 }
 
 setup
 
+do_sysconfig=false
+do_system=false
 do_config=false
 do_build=false
 do_dist=false
@@ -112,20 +132,25 @@ do_dist_modules=false
 do_firmware=false
 do_env=false
 
-while getopts ":cbdmfe" opt; do
+while getopts ":xscbdmfe" opt; do
     case ${opt} in
+	x ) do_sysconfig=true;;
+	s ) do_system=true;;
 	c ) do_config=true;;
 	b ) do_build=true;;
 	d ) do_dist=true;;
 	m ) do_dist_modules=true;;
 	f ) do_firmware=true;;
-	e ) do_env=true
+	e ) do_env=true;;
     esac
 done
 
+if [ $do_sysconfig = true ]; then sysconfig; fi
+if [ $do_system = true ]; then system; fi
 if [ $do_config = true ]; then config; fi
 if [ $do_build = true ]; then build; fi
 if [ $do_dist = true ]; then dist; fi
 if [ $do_dist_modules = true ]; then dist_modules; fi
 if [ $do_firmware = true ]; then firmware; fi
 if [ $do_env = true ]; then exportenv; fi
+

@@ -1,1 +1,1 @@
-source "$BR2_EXTERNAL_OHMBASE_PATH/package/Config.in"
+source "$BR2_EXTERNAL_OHMBASE_PATH/package/mg/Config.in"
