@@ -1,0 +1,225 @@
+#!/bin/bash
+
+
+setenv() {
+
+    remote_addr=ohmbre #10.0.0.3
+    arch=arm64
+    gccarch=aarch64
+    kconfig=bcmrpi3_defconfig
+    dts_subdir=dts/broadcom
+    kernel=Image
+    this_dir=$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )
+    blds_dir=$this_dir/builds
+    wrks_dir=$this_dir/.work
+    uppers_dir=$this_dir/.uppers
+    ksrc_dir=$this_dir/kernel
+    kbld_dir=$blds_dir/kernel
+    sbld_dir=$blds_dir/os
+    wrk_dir=$wrks_dir/kernel
+    upper_dir=$uppers_dir/kernel
+    dist_dir=$this_dir/dist
+    ssrc_dir=$this_dir/ohmbase
+    mntpt="./mnt"
+    
+    kmake="make INSTALL_PATH=$dist_dir/boot INSTALL_MOD_PATH=$dist_dir"
+    kmake+=" KBUILD_OUTPUT=$kbld_dir ARCH=$arch INITRD=No"
+    kmake+=" CROSS_COMPILE=$sbld_dir/host/bin/$gccarch-ohm-linux-gnu-"
+    kmake+=" CCACHE_DIR=$build_dir/.ccache -C $ksrc_dir"
+
+    smake="make BR2_DL_DIR=$sbld_dir/dl BR2_EXTERNAL=$ssrc_dir"
+    smake+=" --directory=$this_dir/buildroot O=$sbld_dir"
+
+    set -eE
+    trap errfunc ERR
+}
+
+clrenv() {
+    trap - ERR
+    set +eE
+    unset remote_addr arch gccarch kconfig dts_subdir kernel this_dir blds_dir wrks_dir \
+	  uppers_dir uppers_dir upstream_src_dir ksrc_dir kbld_dir sbld_dir wrk_dir \
+	  upper_dir dist_dir ssrc_dir mntpt
+}
+
+errfunc() {
+    trap - ERR
+    set +eE
+    clrenv
+    echo "ohmfailure! press ctrl+c to exit"
+    while true; do
+	sleep 1
+    done
+}
+
+kmake() {
+    setenv
+    $kmake $@
+    clrenv
+}
+
+smake() {
+    setenv
+    $smake $@
+    clrenv
+}
+
+
+ksetup() {
+    mkdir -p $dist_dir
+    mkdir -p $ksrc_dir
+    mkdir -p $wrk_dir
+    mkdir -p $blds_dir
+    rm -rf $upper_dir
+    mkdir -p $upper_dir
+
+    if [ -z "$(ls -A $this_dir/upstream-kernel)" ]; then
+	git submodule update --init --recursive --depth=1
+    fi
+
+    umount $ksrc_dir > /dev/null 2>&1 || /bin/true
+    [[ $(findmnt -M "$ksrc_dir") ]] || mount -t overlay overlay -o lowerdir=$this_dir/overlay:$this_dir/upstream-kernel,upperdir=$upper_dir,workdir=$wrk_dir $ksrc_dir
+    for f in $(find $ksrc_dir -name \*.patch); do
+	patch $(dirname $f)/$(basename $f .patch) $f
+    done   
+}
+
+kconfig() {
+    setenv
+    ksetup
+    echo "running with make command: $kmake"
+    echo "source directory is: $ksrc_dir"
+    $kmake $kconfig
+    $kmake nconfig
+    $kmake savedefconfig
+    diff -u $this_dir/upstream-kernel/arch/$arch/configs/$kconfig $kbld_dir/defconfig > $this_dir/overlay/arch/$arch/configs/$kconfig.patch || true
+    $kmake prepare
+    echo "configuration complete. run kbuild next"
+    clrenv
+}
+
+kbuild() {
+    setenv
+    ksetup
+    echo "building in $kbld_dir ..."
+    echo "running with make command: $kmake"
+    $kmake -j10
+    dtc -q -I dts -O dtb -o $kbld_dir/arch/$arch/boot/$dts_subdir/dt-blob.bin $ksrc_dir/arch/$arch/boot/$dts_subdir/dt-blob.dts
+    clrenv
+}
+
+kdist() {
+    setenv
+    ksetup
+    echo "running with make command: $kmake"
+    $kmake -j10 modules_install
+    cp $kbld_dir/arch/$arch/boot/$dts_subdir/ohmbre.dtb $dist_dir/boot/ohmbre.dtb
+    cp $kbld_dir/arch/$arch/boot/$dts_subdir/debug.dtb $dist_dir/boot/debug.dtb
+    cp $kbld_dir/arch/$arch/boot/$kernel $dist_dir/boot/ohmbre.img
+    cp $ksrc_dir/arch/$arch/boot/config.txt $dist_dir/boot/config.txt
+    cp $ksrc_dir/arch/$arch/boot/cmdline.txt $dist_dir/boot/cmdline.txt
+    cp $kbld_dir/arch/$arch/boot/$dts_subdir/dt-blob.bin $dist_dir/boot/dt-blob.bin
+    clrenv
+}
+
+kext() {
+    setenv
+    wget -O $dist_dir/boot/bootcode.bin https://raw.githubusercontent.com/raspberrypi/firmware/next/boot/bootcode.bin
+    wget -O $dist_dir/boot/fixup.dat https://raw.githubusercontent.com/raspberrypi/firmware/next/boot/fixup.dat
+    wget -O $dist_dir/boot/start.elf https://raw.githubusercontent.com/raspberrypi/firmware/next/boot/start.elf
+    clrenv
+}
+
+kinstall() {
+    setenv
+    release=`$kmake -f $kbld_dir/Makefile kernelrelease 2> /dev/null | grep -v make`
+
+    if [ -b /dev/disk/by-label/ohmware ] && [ -b /dev/disk/by-label/ohmbase ]; then
+	echo "installing ohmware to sd card"
+	mkdir -p $mntpt
+	mkdir -p $mntpt/b
+	mkdir -p $mntpt/s
+	[[ $(findmnt -S LABEL=ohmware -M $mntpt/b) ]] || mount /dev/disk/by-label/ohmware $mntpt/b
+	[[ $(findmnt -S LABEL=ohmbase -M $mntpt/s) ]] || mount /dev/disk/by-label/ohmbase $mntpt/s
+	cp $dist_dir/boot/* $mntpt/b/
+	rm -rf $mntpt/s/lib/modules/*
+	cp -a $dist_dir/lib/modules/$release $mntpt/s/lib/modules/
+
+	if [ "$1" = "debug" ]; then
+	    sed -i -e 's/ohmbre.dtb/debug.dtb/g' $mntpt/b/config.txt
+	fi
+    
+	sync   
+	umount -A $mntpt/b
+	umount -A $mntpt/s
+	rmdir $mntpt/b $mntpt/s $mntpt
+    else
+	echo "installing ohmware to live host at $remote_addr"
+	scp $dist_dir/boot/* $remote_addr:/boot/
+	if [ "$1" = "debug" ]; then
+	    cat $dist_dir/boot/config.txt | sed -e 's/ohmbre.dtb/debug.dtb/g' | ssh $remote_addr 'cat > /boot/config.txt'
+	fi
+	cd $dist_dir/lib/modules
+	ssh $remote_addr rm -rf /lib/modules/$release
+	tar cf - $release | ssh $remote_addr '(cd /lib/modules/; tar xf - )'
+	cd $this_dir
+	ssh $remote_addr depmod
+	ssh $remote_addr sync
+    fi
+    clrenv
+}
+
+sconfig() {
+    setenv
+
+    if [ -z "$(ls -A $this_dir/buildroot)" ]; then
+        git submodule update --init --recursive --depth=1
+    fi
+
+    echo "running with make command: $smake"
+    $smake ohmbre_defconfig
+    $smake nconfig
+    $smake savedefconfig
+    clrenv
+}
+
+sbuild() {
+    setenv
+    echo "running with make command: $smake"
+    $smake
+    clrenv
+}
+
+sinstall() {
+    setenv
+    if [ -b /dev/disk/by-label/ohmbase ]; then
+	echo "installing ohmbase to SD card"
+	mkdir -p $mntpt
+	mkdir -p $mntpt/s
+	[[ $(findmnt -S LABEL=ohmbase -M $mntpt/s) ]] || mount /dev/disk/by-label/ohmbase $mntpt/s
+	rm -rf $mntpt/s/*
+	tar xf $sbld_dir/images/rootfs.tar -C $mntpt/s
+	sync
+	umount -A $mntpt/s
+    else
+	echo "installing ohmware to live host at $remote_addr"
+	cat $sbld_dir/images/rootfs.tar | ssh $remote_addr '(cd /; tar xf - )'
+	ssh $remote_addr sync
+    fi
+    clrenv
+}
+
+sdformat() {
+    setenv
+
+    sfdisk $1 < sdcard.sfdisk
+    mkfs.fat -n ohmware -F 16 $11
+    mkfs.ext4 -L ohmbase $12
+    mkswap -L ohmswap $13
+    mkfs.ext4 -L ohmowner $14
+    echo ", +" | sfdisk -N 4 $1
+    
+    clrenv
+}
+
+alias krebuild="kbuild && kdist && kext && kinstall"

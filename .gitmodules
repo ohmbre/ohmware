@@ -5,3 +5,7 @@
 [submodule "buildroot"]
 	path = buildroot
 	url = git://git.busybox.net/buildroot
+[submodule "upstream-kernel"]
+	path = upstream-kernel
+	url = https://github.com/raspberrypi/linux.git
+	branch = rpi-4.15.y

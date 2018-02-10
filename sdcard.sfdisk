@@ -1,0 +1,9 @@
+label: dos
+label-id: 0xda2fb1f0
+device: /dev/sdc
+unit: sectors
+
+/dev/sdc1 : start=        2048, size=      524288, type=6
+/dev/sdc2 : start=      526336, size=     2097152, type=83
+/dev/sdc3 : start=     2623488, size=     2097152, type=82
+/dev/sdc4 : start=     4720640, size=    10803200, type=83
