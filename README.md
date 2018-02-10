@@ -8,7 +8,7 @@ git checkout https://github.com/ohmbre/ohmware.git
 cd ohmware
 source setupenv
 ```
-make sure you've attached a 4GB+ microSD card and that it's not mounted already, and run:
+make sure you've attached a 4GB+ microSD card and that it's not mounted already
 ```
 sdformat /dev/<SD writing device name>
 ohmsweetohm
