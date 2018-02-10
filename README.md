@@ -1,5 +1,5 @@
 # Ωhmware
-kernel and operating system for ohmbre eurorack synth hardware
+firmware, kernel and operating system for ohmbre eurorack synth hardware
 
 ### Building
 
