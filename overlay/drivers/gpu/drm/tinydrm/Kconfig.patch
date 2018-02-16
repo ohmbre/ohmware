@@ -1,0 +1,14 @@
+diff --git a/drivers/gpu/drm/tinydrm/Kconfig b/drivers/gpu/drm/tinydrm/Kconfig
+index 2e790e7dced5..d86f34e71665 100644
+--- a/drivers/gpu/drm/tinydrm/Kconfig
++++ b/drivers/gpu/drm/tinydrm/Kconfig
+@@ -42,3 +42,9 @@ config TINYDRM_ST7586
+ 	  * LEGO MINDSTORMS EV3
+ 
+ 	  If M is selected the module will be called st7586.
++
++config TINYDRM_FT8XX
++       tristate "DRM support for FT8xx display/touch panels"
++       depends on DRM_TINYDRM && SPI
++       help
++         Say Y for ohmbre
