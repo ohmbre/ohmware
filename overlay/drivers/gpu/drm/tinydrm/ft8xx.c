@@ -31,10 +31,6 @@
 #include <drm/tinydrm/tinydrm.h>
 #include <drm/tinydrm/tinydrm-helpers.h>
 
-u8 ohm_logo[] = {
-#include "ohm_logo.h"
-};
-
 
 #define SETUP_SPI_SPEED 10000000 /* Hz */
 //define MAX_SPI_SPEED 75000000 /* Hz */
@@ -49,7 +45,6 @@ u8 ohm_logo[] = {
 #define NBUFFERS 1
 #define CLKSYNC_SAMPLES 50
 
-#define PREFER_FORMAT DRM_FORMAT_RGB565
 #define PREFER_DEPTH 16
 
 #define HW_PCLK 6
@@ -99,9 +94,11 @@ u8 ohm_logo[] = {
 #define ARGB1555 0
 #define RGB565 7
 #define L8 3
-#define ONE 1
 #define ZERO 0
+#define ONE 1
+#define SRC_ALPHA 2
 #define DST_ALPHA 3
+#define ONE_MINUS_SRC_ALPHA 4
 #define ONE_MINUS_DST_ALPHA 5
 
 #define RESET 0x68
@@ -155,7 +152,7 @@ _(INT_MASK            ,0xB0  ,8  ,1 ,1 ,0xFFUL)  \
 _(PWM_HZ              ,0xD0  ,14 ,1 ,1 ,250UL) \
 _(PWM_DUTY            ,0xD4  ,8  ,1 ,1 ,128UL)  \
 _(CMD_READ            ,0xF8  ,12 ,1 ,1 ,0) \
-_(CMD_WRITE           ,0xFC  ,12 ,1 ,0 ,0) \
+_(CMD_WRITE           ,0xFC  ,12 ,1 ,1 ,0) \
 _(CTOUCH_MODE         ,0x104 ,2  ,1 ,1 ,3)  \
 _(CTOUCH_EXTENDED     ,0x108 ,1  ,1 ,1 ,1)  \
 _(CTOUCH_TOUCH1_XY    ,0x11C ,32 ,1 ,0 ,0) \
@@ -167,7 +164,8 @@ _(CTOUCH_TRANSFORM_D  ,0x15C ,32 ,1 ,1 ,0) \
 _(CTOUCH_TRANSFORM_E  ,0x160 ,32 ,1 ,1 ,0x10000UL) \
 _(CTOUCH_TRANSFORM_F  ,0x164 ,32 ,1 ,1 ,0) \
 _(TRIM                ,0x180 ,8  ,1 ,1 ,0)  \
-_(CMDB_SPACE          ,0x574 ,12 ,1 ,1 ,0xFFCUL) \
+_(DATESTAMP           ,0x564 ,32 ,1 ,0 ,0) \
+_(CMDB_SPACE          ,0x574 ,12 ,1 ,1 ,0xFFCUL)	\
 _(CMDB_WRITE          ,0x578 ,32 ,0 ,1 ,0) \
 
 #define REG_IDS(id, offset, nbits, readable, writable, default) id,
@@ -256,6 +254,8 @@ struct ft8device {
 
 	struct hrtimer vblank_timer;
 	ktime_t vblank_interval;
+	u8 vblank_on;
+	struct delayed_work logo_work;
 
 	u8 bpp;
 	u32 dl[8196];
@@ -439,8 +439,8 @@ int ft8dl_write(struct ft8device *ft8) {
 void ft8clear_buffers(struct ft8device *ft8) {
 	//ft8->frontbuf = RAM(G);
 	//ft8->drawbuf = RAM(G) + ft8->bpp * W * H;
-
 	u32 cmds[3] = {CMD_MEMZERO, 0, ft8->bpp * W * H * NBUFFERS};
+	if (!ft8->format) return;
 	ft8copro_cmds(ft8, cmds, 3);
 	ft8copro_wait(ft8, 50);
 	ft8dl_write(ft8);
@@ -455,6 +455,94 @@ void ft8set_format(struct ft8device *ft8, u32 format) {
 	ft8->format = format;
 	ft8->bpp = fmt_info->cpp[0];
 	ft8clear_buffers(ft8);
+}
+
+static const u8 ohm_logo[] = {
+#include "ohm_logo.h"
+};
+
+#define SINP 128
+static const s16 sine_tbl[SINP] = {
+0, 1206, 2409, 3606, 4795, 5971, 7134, 8279, 9405, 10508, 11585, 12635, 13654, 14640, 15591, 16504,
+17378, 18210, 18998, 19740, 20434, 21080, 21674, 22216, 22705, 23139, 23518, 23839, 24104, 24310, 24458, 24546,
+24576, 24546, 24458, 24310, 24104, 23839, 23518, 23139, 22705, 22216, 21674, 21080, 20434, 19740, 18998, 18210,
+17378, 16504, 15591, 14640, 13654, 12635, 11585, 10508, 9405, 8279, 7134, 5971, 4795, 3606, 2409, 1206,
+0, -1206, -2409, -3606, -4795, -5971, -7134, -8279, -9405, -10508, -11585, -12635, -13654, -14640, -15591, -16504,
+-17378, -18210, -18998, -19740, -20434, -21080, -21674, -22216, -22705, -23139, -23518, -23839, -24104, -24310, -24458, -24546,
+-24576, -24546, -24458, -24310, -24104, -23839, -23518, -23139, -22705, -22216, -21674, -21080, -20434, -19740, -18998, -18210,
+-17378, -16504, -15591, -14640, -13654, -12635, -11585, -10508, -9405, -8279, -7134, -5971, -4795, -3606, -2409, -1206
+};
+
+#define SIN(theta) (sine_tbl[theta % SINP])
+#define COS(theta) (sine_tbl[(theta + 96) % SINP])
+#define LOGOTRANSX(theta) DL(BITMAP_TRANSFORM_C(SIN(theta)>>4))
+#define LOGOTRANSY(theta) DL(BITMAP_TRANSFORM_F(COS(theta)>>4))
+
+static void ft8logo_draw(struct ft8device *ft8) {
+	u32 theta,o=0;
+	
+	DL(CLEAR_COLOR_RGB(0,0,0));
+	DL(CLEAR_COLOR_A(0));
+	DL(CLEAR(1,1,1));
+
+	DL(COLOR_RGB(255,255,255));
+	DL(COLOR_A(255));
+
+	DL(BITMAP_SOURCE(RAM(G)));
+	DL(BITMAP_LAYOUT(L8, W, H));
+	DL(BITMAP_SIZE(NEAREST, BORDER, BORDER, W, H));
+	
+	DL(BEGIN(BITMAPS));
+	
+	theta = RREG(FRAMES);
+	LOGOTRANSX(theta);
+	LOGOTRANSY(theta);
+	DL(COLOR_MASK(1,0,0,1));
+	DL(VERTEX2II(0,0,0,0));
+
+	theta += 42;
+	LOGOTRANSX(theta);
+	LOGOTRANSY(theta);
+	DL(COLOR_MASK(0,1,0,1));
+	DL(VERTEX2II(0,0,0,0));	
+	
+	theta += 43;
+	LOGOTRANSX(theta);
+	LOGOTRANSY(theta);
+	DL(COLOR_MASK(0,0,1,1));
+	DL(VERTEX2II(0,0,0,0));
+	
+	DL(END());
+	DL(DISPLAY());
+	ft8mem_write_bulk(ft8, RAM(DL), 0, ft8->dl, o*4, true);
+	WREG(DLSWAP, DLSWAP_FRAME);
+
+}
+
+static void ft8logo_ddraw(struct work_struct *work) {
+	struct delayed_work *dwork = to_delayed_work(work);
+	struct ft8device *ft8 = container_of(dwork, struct ft8device, logo_work);
+	ft8logo_draw(ft8);
+}
+
+static void ft8logo_init(struct ft8device *ft8) {
+	u32 o = 0;
+	ft8->format = 0;
+	ft8mem_write_bulk(ft8, RAM(G), 0, (u32*)ohm_logo, W*H, true);
+	DL(CLEAR_COLOR_RGB(0,0,0));
+	DL(CLEAR_COLOR_A(0));
+	DL(CLEAR(1,1,1));
+	DL(COLOR_RGB(255,255,255));
+	DL(COLOR_A(255));
+	DL(BITMAP_SOURCE(RAM(G)));
+	DL(BITMAP_LAYOUT(L8, W, H));
+	DL(BITMAP_SIZE(NEAREST, BORDER, BORDER, W, H));
+	DL(BEGIN(BITMAPS));
+	DL(VERTEX2II(0,0,0,0));
+	DL(END());
+	DL(DISPLAY());
+	ft8mem_write_bulk(ft8, RAM(DL), 0, ft8->dl, o*4, true);
+	WREG(DLSWAP, DLSWAP_FRAME);
 }
 
 static void ft8pipe_enable(struct drm_simple_display_pipe *pipe,
@@ -484,10 +572,7 @@ static void ft8pipe_disable(struct drm_simple_display_pipe *pipe)
 
 	ft8->stats[DISABLED] = ktime_get();
 	ft8->enabled = false;
-
 	drm_crtc_vblank_off(&ft8->tinydrm.pipe.crtc);
-	WREG(PWM_DUTY, 0);
-
 
 }
 
@@ -498,17 +583,8 @@ void ft8display_pipe_update(struct drm_simple_display_pipe *pipe,
 	struct drm_framebuffer *fb = pipe->plane.state->fb;
 	struct drm_crtc *crtc = &tdev->pipe.crtc;
 	struct ft8device *ft8 = container_of(tdev, struct ft8device, tinydrm);
-	//ktime_t start;
 
 	ft8->stats[UPDATES]++;
-
-	/*if (fb && (fb != old_state->fb)) {
-		pipe->plane.fb = fb;
-		if (fb->funcs->dirty) {
-			fb->funcs->dirty(fb, NULL, 0, 0, NULL, 0);
-			ft8->stats[UPDIRTIES]++;
-		}
-		}*/
 
 	if (crtc->state->event) {
 		spin_lock_irq(&crtc->dev->event_lock);
@@ -516,9 +592,7 @@ void ft8display_pipe_update(struct drm_simple_display_pipe *pipe,
                         drm_crtc_arm_vblank_event(crtc, crtc->state->event);
                 else
                         drm_crtc_send_vblank_event(crtc, crtc->state->event);
-		//tmpbuf = ft8->frontbuf;
-		//ft8->frontbuf = ft8->drawbuf;
-		//ft8->drawbuf = tmpbuf;
+
 		ft8->stats[SWAPS]++;
 		spin_unlock_irq(&crtc->dev->event_lock);
 
@@ -527,9 +601,6 @@ void ft8display_pipe_update(struct drm_simple_display_pipe *pipe,
 			fb->funcs->dirty(fb, NULL, 0, 0, NULL, 0);
 			ft8->stats[UPDIRTIES]++;
 		}
-		//while (RREG(DLSWAP) != 0)
-		//	ft8->stats[WAITS]++;
-		//ft8dl_write(ft8);
 		ft8->stats[NFRAMES] = RREG(FRAMES);
 
 		crtc->state->event = NULL;
@@ -609,22 +680,24 @@ static enum hrtimer_restart ft8vblank_isr(struct hrtimer *timer) {
 	hrtimer_forward_now(&ft8->vblank_timer, ft8->vblank_interval);
 	hrtimer_restart(&ft8->vblank_timer);
 	ft8->stats[NBLANKS]++;
-	drm_crtc_handle_vblank(&ft8->tinydrm.pipe.crtc);
+	if (ft8->vblank_on)
+		drm_crtc_handle_vblank(&ft8->tinydrm.pipe.crtc);
+	else if (!ft8->enabled && !ft8->format)
+		schedule_delayed_work(&ft8->logo_work, 0);
 	return HRTIMER_NORESTART;
 }
 
 static int ft8vblank_enable(struct drm_device *drm, unsigned int crtc) {
 	struct tinydrm_device *tdev = drm->dev_private;
 	struct ft8device *ft8 = container_of(tdev, struct ft8device, tinydrm);
-	//hrtimer_start(&ft8->vblank_timer, ktime_sub_us(ft8->vblank_interval, 100), HRTIMER_MODE_REL);
-	hrtimer_start(&ft8->vblank_timer, ft8->vblank_interval, HRTIMER_MODE_REL);
+	ft8->vblank_on = 1;
 	return 0;
 }
 
 static void ft8vblank_disable(struct drm_device *drm, unsigned int crtc) {
 	struct tinydrm_device *tdev = drm->dev_private;
 	struct ft8device *ft8 = container_of(tdev, struct ft8device, tinydrm);
-	hrtimer_cancel(&ft8->vblank_timer);
+	ft8->vblank_on = 0;
 }
 
 int ft8debug_stats_show(struct seq_file *m, void *arg) {
@@ -639,8 +712,6 @@ int ft8debug_stats_show(struct seq_file *m, void *arg) {
 	now = ktime_get();
 	delta = ktime_ms_delta(now, ft8->stats[ENABLED]);
 	seq_printf(m,"delta: %lldms\n", delta);
-	//for (i = 0; i < ENABLED; i++)
-	//	seq_printf(m,"%s/sec: %lld", stat_strings[i], (ft8->stats[i] * 1000) / delta);
 
 	return 0;
 }
@@ -653,7 +724,6 @@ static const struct drm_info_list ft8debug_list[] = {
 static int ft8debug_regshow(struct seq_file *m, void *d) {
         struct ft8device *ft8 = m->private;
 	int i;
-	dev_warn(&ft8->spi->dev, "path: %s\n", m->file->f_path.dentry->d_iname);
 	for (i = 0; i < NREGS; i++)
 		if (strcmp(m->file->f_path.dentry->d_iname, ft8regs[i].name) == 0) {
 			if (!ft8regs[i].readable) return -EINVAL;
@@ -663,9 +733,18 @@ static int ft8debug_regshow(struct seq_file *m, void *d) {
         return -EINVAL;
 }
 
+static int ft8debug_memshow(struct seq_file *m, void *d) {
+        return -EINVAL;
+}
+
 static int ft8debug_regopen(struct inode *inode, struct file *file) {
 	struct ft8device *ft8 = inode->i_private;
 	return single_open(file, ft8debug_regshow, ft8);
+}
+
+static int ft8debug_memopen(struct inode *inode, struct file *file) {
+	struct ft8device *ft8 = inode->i_private;
+	return single_open(file, ft8debug_memshow, ft8);
 }
 
 static ssize_t ft8debug_regwrite(struct file *file, const char __user *user_buf, size_t count, loff_t *ppos)
@@ -694,6 +773,23 @@ static ssize_t ft8debug_regwrite(struct file *file, const char __user *user_buf,
 	return -EINVAL;
 }
 
+static ssize_t ft8debug_memwrite(struct file *file, const char __user *user_buf, size_t count, loff_t *ppos)
+{
+	struct seq_file *m = file->private_data;
+	struct ft8device *ft8 = m->private;
+	struct memwrite {
+		u32 addr;
+		u32 val;
+	} *memwrite;
+	if (count != 8)
+		return -EINVAL;
+	memwrite = memdup_user_nul(user_buf, count);
+	if (IS_ERR(memwrite))
+	        return PTR_ERR(memwrite);
+	ft8mem_write(ft8, 0, memwrite->addr, memwrite->val);
+	kfree(memwrite);
+	return 8;
+}
 
 static const struct file_operations ft8reg_debugfs_ops = {
 	.owner = THIS_MODULE,
@@ -704,13 +800,22 @@ static const struct file_operations ft8reg_debugfs_ops = {
 	.release = single_release,
 };
 
+static const struct file_operations ft8mem_debugfs_ops = {
+	.owner = THIS_MODULE,
+	.open = ft8debug_memopen,
+	.read = seq_read,
+	.write = ft8debug_memwrite,
+	.llseek = seq_lseek,
+	.release = single_release,
+};
+
 int ft8debug_init(struct drm_minor *minor) {
 	struct tinydrm_device *tdev = minor->dev->dev_private;
 	struct ft8device *ft8 = container_of(tdev, struct ft8device, tinydrm);
 	int i;
 	for (i = 0; i < NREGS; i++)
 		debugfs_create_file(ft8regs[i].name, S_IFREG | S_IWUSR | S_IRUGO, minor->debugfs_root, ft8, &ft8reg_debugfs_ops);
-
+	debugfs_create_file("mem", S_IFREG | S_IWUSR | S_IRUGO, minor->debugfs_root, ft8, &ft8mem_debugfs_ops);
 	return drm_debugfs_create_files(ft8debug_list, ARRAY_SIZE(ft8debug_list), minor->debugfs_root, minor);
 }
 
@@ -834,6 +939,7 @@ int ft8touch_init(struct spi_device *spi, struct ft8device *ft8) {
 	return 0;
 }
 
+
 static int ft8chip_powerup(struct ft8device *ft8) {
 
 	int ret,tries,cmds[4],i,frame;
@@ -869,18 +975,6 @@ static int ft8chip_powerup(struct ft8device *ft8) {
 	  return -ENODEV;
 	}
 
-	/*ftstart = RREG(CLOCK);
-	kstart = ktime_get();
-	msleep(1000);
-	ftend = RREG(CLOCK);
-	kend = ktime_get();
-	kdelta = ktime_divns(ktime_sub(kend,kstart),100);
-	ftdelta = (ftend - ftstart)/6;
-	trim_result = kdelta - ftdelta;
-	if (trim_result < 0) trim_result *= -1;
-	dev_info(&ft8->spi->dev, "diff: %d\n", trim_result);*/
-
-
 	WREG(PWM_DUTY, BRIGHTNESS);
 
 	WREG(HSIZE, W);
@@ -902,14 +996,14 @@ static int ft8chip_powerup(struct ft8device *ft8) {
 	WREG(GPIO_DIR, 0xff);
 	WREG(GPIO, 0xff);
 
-	ft8set_format(ft8, PREFER_FORMAT);
-	ft8mem_write_bulk(ft8, RAM(G), 0, (u32*)ohm_logo, W*H*ft8->bpp, true);
+	INIT_DELAYED_WORK(&ft8->logo_work, ft8logo_ddraw);
+	ft8logo_init(ft8);
+	WREG(PCLK, HW_PCLK);
 	WREG(PWM_HZ, 128);
-
+	
 	cmds[0] = CMD_SETROTATE;
 	cmds[1] = ROTATION;
 	ft8copro_cmds(ft8, cmds, 3);
-	WREG(PCLK, HW_PCLK);
 
 	frame = RREG(FRAMES);
 	while (RREG(FRAMES) == frame);
@@ -925,26 +1019,8 @@ static int ft8chip_powerup(struct ft8device *ft8) {
 	ft8->vblank_interval = ktime_divns(ns_to_ktime(sum),CLKSYNC_SAMPLES);
 	hrtimer_init(&ft8->vblank_timer, CLOCK_MONOTONIC, HRTIMER_MODE_REL);
 	ft8->vblank_timer.function = &ft8vblank_isr;
+	hrtimer_start(&ft8->vblank_timer, ft8->vblank_interval, HRTIMER_MODE_REL);
 	dev_info(&ft8->spi->dev, "blanking interval: %lld, hrtimer resolution: %u", ktime_to_ns(ft8->vblank_interval), hrtimer_resolution);
-
-	/*WREG(PWM_DUTY, 128);
-	cmds[0] = CMD_CALIBRATE;
-	cmds[1] = 0x69696969UL;
-	ft8copro_cmds(ft8, cmds, 2);
-	ft8copro_wait(ft8, 0);
-	dev_info(&ft8->spi->dev, "calibration results: 0x%X 0x%X 0x%X 0x%X 0x%X 0x%X",
-		RREG(CTOUCH_TRANSFORM_A),
-		RREG(CTOUCH_TRANSFORM_B),
-		RREG(CTOUCH_TRANSFORM_C),
-		RREG(CTOUCH_TRANSFORM_D),
-		RREG(CTOUCH_TRANSFORM_E),
-		RREG(CTOUCH_TRANSFORM_F));
-	WREG(CTOUCH_TRANSFORM_A, 0x00005d2b);
-	WREG(CTOUCH_TRANSFORM_B, 0xfffffe28);
-	WREG(CTOUCH_TRANSFORM_C, 0xfff388da);
-	WREG(CTOUCH_TRANSFORM_D, 0x0000007e);
-	WREG(CTOUCH_TRANSFORM_E, 0x0000686b);
-        WREG(CTOUCH_TRANSFORM_F, 0xfff23bed);*/
 
 	WREG(INT_MASK, INT_CONVCOMPLETE);
 	WREG(INT_EN, 1);
@@ -966,17 +1042,10 @@ static int ft8probe(struct spi_device *spi) {
 
 	ft8->spi = spi;
 	ft8->chip_id = 0x13;
+	ft8->vblank_on = 0;
 	ret = ft8chip_powerup(ft8);
 	if (ret)
 		return ret;
-
-	// theoretical max zlib out buffer, plus 8 bytes ft8 command overhead
-	//ft8->zx_buf = devm_kmalloc(dev, H * W + H * W / 1000 + 13 + 8, GFP_KERNEL);
-	//wsize = zlib_deflate_workspacesize(MAX_WBITS, MAX_MEM_LEVEL);
-	//ft8->zstream.workspace = devm_kzalloc(dev, wsize, GFP_KERNEL);
-
-	//if (!ft8->tx_header_buf || !ft8->tx_buf) // || !ft8->zx_buf || !ft8->zstream.workspace)
-	//	return -ENOMEM;
 
 	ft8->interrupt_gpio = devm_gpiod_get(dev, "irq", GPIOD_IN);
 	if (IS_ERR(ft8->interrupt_gpio)) {
@@ -984,15 +1053,11 @@ static int ft8probe(struct spi_device *spi) {
 		return PTR_ERR(ft8->interrupt_gpio);
 	}
 
-	//dev->dma_ops = &dma_virt_ops;
-	//set_dma_ops(dev, &dma_virt_ops);
 	arch_setup_dma_ops(dev, 0, DMA_BIT_MASK(32), NULL, true);
 	if (!dev->coherent_dma_mask) {
 		ret = dma_coerce_mask_and_coherent(dev, DMA_BIT_MASK(32));
-		if (ret) {
+		if (ret)
 			dev_warn(dev, "Failed to set dma mask %d", ret);
-			//return ret;
-		}
 	}
 
 	ret = ft8drm_init(ft8);
@@ -1035,7 +1100,7 @@ static int ft8probe(struct spi_device *spi) {
 static void ft8shutdown(struct spi_device *spi) {
 	struct tinydrm_device *tdev = spi_get_drvdata(spi);
   	struct ft8device *ft8 = container_of(tdev, struct ft8device, tinydrm);
-
+	hrtimer_cancel(&ft8->vblank_timer);
 	ft8->enabled = false;
         dev_info(&spi->dev, "shutting down ft8xx\n");
 	WREG(PWM_DUTY, 0);
@@ -1121,61 +1186,3 @@ MODULE_DESCRIPTION("FTDI FT8xx DRM driver");
 MODULE_AUTHOR("Matt Gattis");
 MODULE_LICENSE("GPL");
 
-
-/*int ft8buf_ztransfer(struct ft8device *ft8, void *src, u32 addr, size_t len) {
-	int ret;
-	struct spi_message msg;
-	struct spi_transfer header = {
-		.tx_buf = ft8->tx_header_buf,
-		.rx_buf = NULL,
-		.len = 3,
-		.bits_per_word = 8,
-	};
-	struct spi_transfer body = {
-		.tx_buf = ft8->zx_buf,
-		.rx_buf = NULL,
-		.len = 0,
-		.bits_per_word = 8,
-	};
-
-	ret = zlib_deflateInit(&ft8->zstream, 3);
-	if (ret != Z_OK) {
-		dev_err(&ft8->spi->dev, "deflateInit failed: %d", ret);
-		return ret;
-	}
-	ft8->zstream.total_in = 0;
-	ft8->zstream.total_out = 0;
-	ft8->zstream.next_in = src;
-	ft8->zstream.avail_in = len;
-	ft8->zstream.next_out = ft8->zx_buf + 8;
-	ft8->zstream.avail_out = H * W + H * W / 1000 + 13;
-	ret = zlib_deflate(&ft8->zstream, Z_FINISH);
-	if (ret != Z_STREAM_END) {
-		dev_err(&ft8->spi->dev, "zlib did not finish stream");
-		zlib_deflateEnd(&ft8->zstream);
-		return -EIO;
-	}
-
-	body.len = 8 + ft8->zstream.total_out;
-	zlib_deflateEnd(&ft8->zstream);
-	if (body.len % 4 != 0)
-		body.len += 4 - (body.len % 4);
-
-	spi_message_init(&msg);
-	spi_message_add_tail(&header, &msg);
-	spi_message_add_tail(&body, &msg);
-	ft8set_mem_addr(ft8->tx_header_buf, REG(CMDB_WRITE), false);
-	((uint32_t*)ft8->zx_buf)[0] = CMD_INFLATE;
-	((uint32_t*)ft8->zx_buf)[1] = addr;
-
-	if(spi_sync(ft8->spi, &msg)) {
-		dev_err(&ft8->spi->dev, "zbuf spi err");
-		zlib_deflateEnd(&ft8->zstream);
-		return -EIO;
-	}
-
-        while (RREG(CMD_READ)) != RREG(CMD_WRITE)))
-                usleep_range(500, 1500);
-
-	return 0;
-	}*/
