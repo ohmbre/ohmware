@@ -223,6 +223,12 @@ sdformat() {
     clrenv
 }
 
-alias krebuild="kbuild && kdist && kext && kinstall"
+krebuild() {
+    kbuild
+    kdist
+    kext
+    kinstall $1
+}
+
 alias ohmsweetohm="sconfig && sbuild && sinstall && kconfig && kbuild && kext && kdist"
 cd "$( dirname "${BASH_SOURCE[0]}" )"
