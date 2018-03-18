@@ -1,1 +1,6 @@
 source "$BR2_EXTERNAL_OHMBASE_PATH/package/mg/Config.in"
+source "$BR2_EXTERNAL_OHMBASE_PATH/package/emacs/Config.in"
+source "$BR2_EXTERNAL_OHMBASE_PATH/package/python-uvloop/Config.in"
+source "$BR2_EXTERNAL_OHMBASE_PATH/package/python-cython/Config.in"
+source "$BR2_EXTERNAL_OHMBASE_PATH/package/python-pyqtnew/Config.in"
+

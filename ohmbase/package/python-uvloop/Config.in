@@ -1,0 +1,4 @@
+config BR2_PACKAGE_PYTHON_UVLOOP
+	bool "python uvloop"
+	select BR2_PACKAGE_HOST_PYTHON_CYTHON	
+

@@ -60,7 +60,6 @@
 #define HW_VSYNC1 2UL
 
 //define HW_VBLANK_NS 16253400UL
-#define ROTATION 0UL
 #define BRIGHTNESS 128
 #define HW_PWM_HZ 613
 
@@ -256,12 +255,12 @@ struct ft8device {
 	ktime_t vblank_interval;
 	u8 vblank_on;
 	struct delayed_work logo_work;
+	u64 logo_theta;
 
 	u8 bpp;
 	u32 dl[8196];
 	s64 stats[NSTATS];
-	//u8 *zx_buf;
-	//z_stream zstream
+
 };
 
 
@@ -473,13 +472,17 @@ static const s16 sine_tbl[SINP] = {
 -17378, -16504, -15591, -14640, -13654, -12635, -11585, -10508, -9405, -8279, -7134, -5971, -4795, -3606, -2409, -1206
 };
 
-#define SIN(theta) (sine_tbl[theta % SINP])
-#define COS(theta) (sine_tbl[(theta + 96) % SINP])
-#define LOGOTRANSX(theta) DL(BITMAP_TRANSFORM_C(SIN(theta)>>4))
-#define LOGOTRANSY(theta) DL(BITMAP_TRANSFORM_F(COS(theta)>>4))
+#define SIN(theta) ((s32)sine_tbl[(theta) % SINP])
+#define COS(theta) ((s32)sine_tbl[((theta) + 96) % SINP])
+#define MATHX(theta) (COS(3*theta/2)*COS(theta/2))>>18
+#define MATHY(theta) (COS(3*theta/2)*SIN(theta/2))>>18
+#define LOGOTRANSX(theta) DL(BITMAP_TRANSFORM_C(MATHX(theta)))
+#define LOGOTRANSY(theta) DL(BITMAP_TRANSFORM_F(MATHY(theta)))
 
 static void ft8logo_draw(struct ft8device *ft8) {
-	u32 theta,o=0;
+	u32 o=0;
+	u64 theta = ft8->logo_theta;
+	ft8->logo_theta++;
 	
 	DL(CLEAR_COLOR_RGB(0,0,0));
 	DL(CLEAR_COLOR_A(0));
@@ -494,7 +497,6 @@ static void ft8logo_draw(struct ft8device *ft8) {
 	
 	DL(BEGIN(BITMAPS));
 	
-	theta = RREG(FRAMES);
 	LOGOTRANSX(theta);
 	LOGOTRANSY(theta);
 	DL(COLOR_MASK(1,0,0,1));
@@ -528,6 +530,7 @@ static void ft8logo_ddraw(struct work_struct *work) {
 static void ft8logo_init(struct ft8device *ft8) {
 	u32 o = 0;
 	ft8->format = 0;
+	ft8->logo_theta=64;
 	ft8mem_write_bulk(ft8, RAM(G), 0, (u32*)ohm_logo, W*H, true);
 	DL(CLEAR_COLOR_RGB(0,0,0));
 	DL(CLEAR_COLOR_A(0));
@@ -569,7 +572,7 @@ static void ft8pipe_disable(struct drm_simple_display_pipe *pipe)
 {
 	struct tinydrm_device *tdev = pipe_to_tinydrm(pipe);
 	struct ft8device *ft8 = container_of(tdev, struct ft8device, tinydrm);
-
+	//WREG(PWM_DUTY, 0);
 	ft8->stats[DISABLED] = ktime_get();
 	ft8->enabled = false;
 	drm_crtc_vblank_off(&ft8->tinydrm.pipe.crtc);
@@ -942,7 +945,7 @@ int ft8touch_init(struct spi_device *spi, struct ft8device *ft8) {
 
 static int ft8chip_powerup(struct ft8device *ft8) {
 
-	int ret,tries,cmds[4],i,frame;
+	int ret,tries,i,frame;
 	ktime_t last,now;
 	u64 sum = 0;
 	struct device *dev = &ft8->spi->dev;
@@ -957,26 +960,25 @@ static int ft8chip_powerup(struct ft8device *ft8) {
 		dev_err(dev, "bad spi_setup ret %d", ret);
 		return ret;
 	}
-
-	ft8host_cmd(ft8, RESET);
-	ft8host_cmd(ft8, PWRDOWN);
+	WREG(PWM_DUTY, 0);
 	ft8host_cmd(ft8, ACTIVE);
+	WREG(PWM_DUTY, 0);
 	ft8host_cmd(ft8, CLKEXT);
 	WREG(PWM_DUTY, 0);
-	msleep(50);
-
+	msleep(40);
+	WREG(PWM_DUTY, 0);
 	tries = 0;
-	while (RREG(ID) != REG_ID_VAL && tries < 20) { // wait
-	  msleep(50);
-	  tries++;
+	while (RREG(ID) != REG_ID_VAL && tries < 100) { // wait
+		WREG(PWM_DUTY, 0);
+		tries++;
 	}
-	if (tries >= 10) {
-	  dev_err(&ft8->spi->dev, "couldnt find display\n");
-	  return -ENODEV;
+	if (tries >= 100) {
+		dev_err(&ft8->spi->dev, "couldnt find display. reg_id=%u, tries=%d\n", RREG(ID), tries);
+		return -ENODEV;
 	}
-
-	WREG(PWM_DUTY, BRIGHTNESS);
-
+	
+	WREG(PWM_DUTY, 0);
+	
 	WREG(HSIZE, W);
 	WREG(HCYCLE, HW_HCYCLE);
 	WREG(HOFFSET, HW_HOFFSET);
@@ -1000,10 +1002,10 @@ static int ft8chip_powerup(struct ft8device *ft8) {
 	ft8logo_init(ft8);
 	WREG(PCLK, HW_PCLK);
 	WREG(PWM_HZ, 128);
-	
-	cmds[0] = CMD_SETROTATE;
-	cmds[1] = ROTATION;
-	ft8copro_cmds(ft8, cmds, 3);
+
+	frame = RREG(FRAMES);
+	while (RREG(FRAMES) <= (frame+1));
+	WREG(PWM_DUTY, BRIGHTNESS); // turn on backlight only after a frame is rendered
 
 	frame = RREG(FRAMES);
 	while (RREG(FRAMES) == frame);
@@ -1020,7 +1022,7 @@ static int ft8chip_powerup(struct ft8device *ft8) {
 	hrtimer_init(&ft8->vblank_timer, CLOCK_MONOTONIC, HRTIMER_MODE_REL);
 	ft8->vblank_timer.function = &ft8vblank_isr;
 	hrtimer_start(&ft8->vblank_timer, ft8->vblank_interval, HRTIMER_MODE_REL);
-	dev_info(&ft8->spi->dev, "blanking interval: %lld, hrtimer resolution: %u", ktime_to_ns(ft8->vblank_interval), hrtimer_resolution);
+	dev_info(&ft8->spi->dev, "blanking interval: %lld, hrtimer resolution: %u, tries: %d", ktime_to_ns(ft8->vblank_interval), hrtimer_resolution, tries);
 
 	WREG(INT_MASK, INT_CONVCOMPLETE);
 	WREG(INT_EN, 1);

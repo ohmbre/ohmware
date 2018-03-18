@@ -104,7 +104,7 @@ kbuild() {
     ksetup
     echo "building in $kbld_dir ..."
     echo "running with make command: $kmake"
-    $kmake -j10
+    $kmake -j48
     dtc -q -I dts -O dtb -o $kbld_dir/arch/$arch/boot/$dts_subdir/dt-blob.bin $ksrc_dir/arch/$arch/boot/$dts_subdir/dt-blob.dts
     clrenv
 }
@@ -113,7 +113,7 @@ kdist() {
     setenv
     ksetup
     echo "running with make command: $kmake"
-    $kmake -j10 modules_install
+    $kmake -j48 modules_install
     cp $kbld_dir/arch/$arch/boot/$dts_subdir/ohmbre.dtb $dist_dir/boot/ohmbre.dtb
     cp $kbld_dir/arch/$arch/boot/$dts_subdir/debug.dtb $dist_dir/boot/debug.dtb
     cp $kbld_dir/arch/$arch/boot/$kernel $dist_dir/boot/ohmbre.img

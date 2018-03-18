@@ -1,0 +1,13 @@
+diff --git a/configure.py b/configure.py
+index 98ce892..dbb504a 100644
+--- a/configure.py
++++ b/configure.py
+@@ -453,7 +453,7 @@ win32 {
+     }
+ }
+ 
+-QMAKE_POST_LINK = $(COPY_FILE) $(DESTDIR_TARGET) $$PY_MODULE
++QMAKE_POST_LINK = $(COPY_FILE) $(TARGET) $$PY_MODULE
+ 
+ target.CONFIG = no_check_exist
+ target.files = $$PY_MODULE
