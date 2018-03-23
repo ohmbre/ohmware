@@ -1,11 +1,12 @@
-Unless otherwise specified at the top of an individual source code file,
-I hereby grant you a license for the remaining code in this repository as follows...
+Unless otherwise specified at the top of an individual source code file, or if source
+code is a patch to an existing source code file where otherwise specified, I hereby
+grant you a license for the remaining code in this repository as follows...
 
 ----------------------------------------------
 
 The MIT License
 
-Copyright (c) 2010-2018 Google, Inc. http://angularjs.org
+Copyright (c) 2018 Matt Gattis <gattis@gmail.com>
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal
