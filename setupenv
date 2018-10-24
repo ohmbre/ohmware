@@ -67,8 +67,10 @@ smake() {
 
 
 ksetup() {
+    setenv
     mkdir -p $dist_dir
     mkdir -p $ksrc_dir
+    rm -rf $wrk_dir
     mkdir -p $wrk_dir
     mkdir -p $blds_dir
     rm -rf $upper_dir
@@ -198,8 +200,8 @@ sinstall() {
 	mkdir -p $mntpt
 	mkdir -p $mntpt/s
 	[[ $(findmnt -S LABEL=ohmbase -M $mntpt/s) ]] || mount /dev/disk/by-label/ohmbase $mntpt/s
-	rm -rf $mntpt/s/*
-	tar xf $sbld_dir/images/rootfs.tar -C $mntpt/s
+	sudo rm -rf $mntpt/s/*
+	sudo tar xf $sbld_dir/images/rootfs.tar -C $mntpt/s
 	sync
 	umount -A $mntpt/s
     else
@@ -214,7 +216,7 @@ sdformat() {
     setenv
 
     sudo sfdisk $1 < sdcard.sfdisk
-    sudo partx -u $1
+    sudo partx -a $1
     prefix=$1
     if [ ! -b $11 ]; then
 	prefix=$1p

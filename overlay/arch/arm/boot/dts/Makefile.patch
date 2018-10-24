@@ -1,12 +1,12 @@
-diff --git a/arch/arm/boot/dts/Makefile b/arch/arm/boot/dts/Makefile
-index d85b3a4d0..d4c385f9d 100644
---- a/arch/arm/boot/dts/Makefile
-+++ b/arch/arm/boot/dts/Makefile
-@@ -84,6 +84,7 @@ dtb-$(CONFIG_ARCH_BCM2835) += \
- 	bcm2835-rpi-a-plus.dtb \
- 	bcm2836-rpi-2-b.dtb \
- 	bcm2837-rpi-3-b.dtb \
-+	ohmbre.dtb \
- 	bcm2835-rpi-zero.dtb \
- 	bcm2835-rpi-zero-w.dtb
- dtb-$(CONFIG_ARCH_BCM_5301X) += \
+--- upstream-kernel/arch/arm/boot/dts/Makefile	2018-10-24 15:28:01.747139697 -0400
++++ overlay/arch/arm/boot/dts/Makefile	2018-10-24 19:06:45.494383618 -0400
+@@ -8,7 +8,8 @@
+ 	bcm2709-rpi-2-b.dtb \
+ 	bcm2710-rpi-3-b.dtb \
+ 	bcm2710-rpi-3-b-plus.dtb \
+-	bcm2710-rpi-cm3.dtb
++	bcm2710-rpi-cm3.dtb \
++	ohmbre.dtb
+ 
+ dtb-$(CONFIG_ARCH_ALPINE) += \
+ 	alpine-db.dtb

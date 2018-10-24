@@ -1,9 +1,7 @@
-diff --git a/drivers/gpu/drm/tinydrm/Makefile b/drivers/gpu/drm/tinydrm/Makefile
-index 0c184bd1b..f730bff98 100644
---- a/drivers/gpu/drm/tinydrm/Makefile
-+++ b/drivers/gpu/drm/tinydrm/Makefile
-@@ -7,3 +7,4 @@ obj-$(CONFIG_TINYDRM_MIPI_DBI)		+= mipi-dbi.o
- obj-$(CONFIG_TINYDRM_MI0283QT)		+= mi0283qt.o
+--- upstream-kernel/drivers/gpu/drm/tinydrm/Makefile	2018-10-24 15:28:03.040473087 -0400
++++ overlay/drivers/gpu/drm/tinydrm/Makefile	2018-10-24 19:10:04.994392389 -0400
+@@ -10,3 +10,4 @@
  obj-$(CONFIG_TINYDRM_REPAPER)		+= repaper.o
  obj-$(CONFIG_TINYDRM_ST7586)		+= st7586.o
+ obj-$(CONFIG_TINYDRM_ST7735R)		+= st7735r.o
 +obj-$(CONFIG_TINYDRM_FT8XX)		+= ft8xx.o
