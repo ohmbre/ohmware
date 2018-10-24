@@ -4,7 +4,7 @@ firmware, kernel and operating system for ohmbre eurorack synth hardware
 ### Building
 
 ```
-git checkout https://github.com/ohmbre/ohmware.git
+git clone https://github.com/ohmbre/ohmware.git
 source ohmware/setupenv
 ```
 make sure you've attached a 4GB+ microSD card and that it's not mounted already
