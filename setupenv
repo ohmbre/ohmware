@@ -213,12 +213,23 @@ sinstall() {
 sdformat() {
     setenv
 
-    sfdisk $1 < sdcard.sfdisk
-    mkfs.fat -n ohmware -F 16 $11
-    mkfs.ext4 -L ohmbase $12
-    mkswap -L ohmswap $13
-    mkfs.ext4 -L ohmowner $14
-    echo ", +" | sfdisk -N 4 $1
+    sudo sfdisk $1 < sdcard.sfdisk
+    sudo partx -u $1
+    prefix=$1
+    if [ ! -b $11 ]; then
+	prefix=$1p
+    fi
+    suffix=1
+    sudo mkfs.fat -n ohmware -F 16 $prefix$suffix
+    suffix=2
+    sudo mkfs.ext4 -L ohmbase $prefix$suffix
+    suffix=3
+    sudo mkswap -L ohmswap $prefix$suffix
+    suffix=4
+    sudo mkfs.ext4 -L ohmowner $prefix$suffix
+    echo ", +" | sudo sfdisk -N 4 $1
+    suffix=*
+    sudo chmod a+rw $prefix$suffix
     
     clrenv
 }
