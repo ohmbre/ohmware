@@ -105,22 +105,22 @@ static bool ak4558_volatile(struct device *dev, unsigned int reg) {
 	return false;
 }
 
-static int ak4558_reset(struct snd_soc_codec *codec) {
-	struct ak4558_priv *ak4558 = snd_soc_codec_get_drvdata(codec);	
+static int ak4558_reset(struct snd_soc_component *codec) {
+	struct ak4558_priv *ak4558 = snd_soc_component_get_drvdata(codec);	
 	gpiod_set_value(ak4558->pdn_gpio, 0);
 	usleep_range(1000, 2000);
 	gpiod_set_value(ak4558->pdn_gpio, 1);
 	usleep_range(1000, 2000);
-	snd_soc_update_bits(codec, AK4558_PWR_MGMT, AK4558_RSTN, 0);
+	snd_soc_component_update_bits(codec, AK4558_PWR_MGMT, AK4558_RSTN, 0);
 	usleep_range(1000, 2000);
-	snd_soc_update_bits(codec, AK4558_PWR_MGMT, AK4558_RSTN, 1);
+	snd_soc_component_update_bits(codec, AK4558_PWR_MGMT, AK4558_RSTN, 1);
 	usleep_range(1000, 2000);
 	return 0;
 }
 
 
 static int ak4558_set_sysclk(struct snd_soc_dai *dai, int clk_id, unsigned int freq, int dir) {
-	struct snd_soc_codec *codec = dai->codec;
+	struct snd_soc_component *codec = dai->component;
 	//struct ak4558_priv *ak4558 = snd_soc_codec_get_drvdata(codec);
 	if (freq != 96000) {
 		dev_err(codec->dev, "set sysclk wants freq=%d clkid=%d dir=%d\n", freq, clk_id, dir);
@@ -134,7 +134,7 @@ static int ak4558_set_sysclk(struct snd_soc_dai *dai, int clk_id, unsigned int f
 static int ak4558_hw_params(struct snd_pcm_substream *substream,
 				struct snd_pcm_hw_params *params,
 				struct snd_soc_dai *dai) {
-	struct snd_soc_codec *codec = dai->codec;
+	struct snd_soc_component *codec = dai->component;
 	//struct ak4558_priv *ak4558 = snd_soc_codec_get_drvdata(codec);
 	int rate = params_rate(params);
 	if (rate != 96000) {
@@ -142,19 +142,19 @@ static int ak4558_hw_params(struct snd_pcm_substream *substream,
 		return -EINVAL;
 	}
 
-	snd_soc_write(codec, AK4558_PLL_CTRL, 0x4);
-	snd_soc_write(codec, AK4558_CTRL_1, 0x38);
-	snd_soc_write(codec, AK4558_MODE_CTRL, 0x3a);
-	snd_soc_write(codec, AK4558_FLTR_SET, 0x29);
-	snd_soc_write(codec, AK4558_HPF_EN_FLTR_SET, 0x4);
-	snd_soc_write(codec, AK4558_PWR_MGMT, 0x1f);
-	snd_soc_write(codec, AK4558_PLL_CTRL, 0x5);
+	snd_soc_component_write(codec, AK4558_PLL_CTRL, 0x4);
+	snd_soc_component_write(codec, AK4558_CTRL_1, 0x38);
+	snd_soc_component_write(codec, AK4558_MODE_CTRL, 0x3a);
+	snd_soc_component_write(codec, AK4558_FLTR_SET, 0x29);
+	snd_soc_component_write(codec, AK4558_HPF_EN_FLTR_SET, 0x4);
+	snd_soc_component_write(codec, AK4558_PWR_MGMT, 0x1f);
+	snd_soc_component_write(codec, AK4558_PLL_CTRL, 0x5);
 	
 	return 0;
 }
 
 static int ak4558_set_fmt(struct snd_soc_dai *dai, unsigned int fmt) {
-	struct snd_soc_codec *codec = dai->codec;
+	struct snd_soc_component *codec = dai->component;
 	if ((fmt & SND_SOC_DAIFMT_MASTER_MASK) != SND_SOC_DAIFMT_CBS_CFS) {
 		dev_err(codec->dev, "set fmt asked for master mask not cbs_cfs: %u\n", fmt);
 		return -EINVAL;
@@ -167,13 +167,13 @@ static int ak4558_set_fmt(struct snd_soc_dai *dai, unsigned int fmt) {
 		dev_err(codec->dev, "set fmt asked for inv mask not nb_nf: %u\n", fmt);
 		return -EINVAL;
 	}
-	snd_soc_write(codec, AK4558_PLL_CTRL, 0x4);
-	snd_soc_write(codec, AK4558_CTRL_1, 0x38);
-	snd_soc_write(codec, AK4558_MODE_CTRL, 0x3a);
-	snd_soc_write(codec, AK4558_FLTR_SET, 0x29);
-	snd_soc_write(codec, AK4558_HPF_EN_FLTR_SET, 0x4);
-	snd_soc_write(codec, AK4558_PWR_MGMT, 0x1f);
-	snd_soc_write(codec, AK4558_PLL_CTRL, 0x5);
+	snd_soc_component_write(codec, AK4558_PLL_CTRL, 0x4);
+	snd_soc_component_write(codec, AK4558_CTRL_1, 0x38);
+	snd_soc_component_write(codec, AK4558_MODE_CTRL, 0x3a);
+	snd_soc_component_write(codec, AK4558_FLTR_SET, 0x29);
+	snd_soc_component_write(codec, AK4558_HPF_EN_FLTR_SET, 0x4);
+	snd_soc_component_write(codec, AK4558_PWR_MGMT, 0x1f);
+	snd_soc_component_write(codec, AK4558_PLL_CTRL, 0x5);
 
 	return 0;
 }
@@ -214,8 +214,8 @@ static struct snd_soc_dai_driver ak4558_dai = {
 };
 
 
-static int ak4558_probe(struct snd_soc_codec *codec) {
-	struct ak4558_priv *ak4558 = snd_soc_codec_get_drvdata(codec);
+static int ak4558_probe(struct snd_soc_component *codec) {
+	struct ak4558_priv *ak4558 = snd_soc_component_get_drvdata(codec);
 	u32 regval;
 	
 	dev_info(codec->dev, "initializing ak4558 chip\n");
@@ -228,13 +228,13 @@ static int ak4558_probe(struct snd_soc_codec *codec) {
 	regmap_read(ak4558->regmap, AK4558_MODE_CTRL, &regval);
 	dev_info(codec->dev, "after reset mode ctrl: %u\n", regval);
 	
-	snd_soc_write(codec, AK4558_PLL_CTRL, 0x4);
-	snd_soc_write(codec, AK4558_CTRL_1, 0x38);
-	snd_soc_write(codec, AK4558_MODE_CTRL, 0x3a);
-	snd_soc_write(codec, AK4558_FLTR_SET, 0x29);
-	snd_soc_write(codec, AK4558_HPF_EN_FLTR_SET, 0x4);
-	snd_soc_write(codec, AK4558_PWR_MGMT, 0x1f);
-	snd_soc_write(codec, AK4558_PLL_CTRL, 0x5);
+	snd_soc_component_write(codec, AK4558_PLL_CTRL, 0x4);
+	snd_soc_component_write(codec, AK4558_CTRL_1, 0x38);
+	snd_soc_component_write(codec, AK4558_MODE_CTRL, 0x3a);
+	snd_soc_component_write(codec, AK4558_FLTR_SET, 0x29);
+	snd_soc_component_write(codec, AK4558_HPF_EN_FLTR_SET, 0x4);
+	snd_soc_component_write(codec, AK4558_PWR_MGMT, 0x1f);
+	snd_soc_component_write(codec, AK4558_PLL_CTRL, 0x5);
 
 	regmap_read(ak4558->regmap, AK4558_MODE_CTRL, &regval);
 	dev_info(codec->dev, "after reset mode ctrl: %u\n", regval);
@@ -242,14 +242,12 @@ static int ak4558_probe(struct snd_soc_codec *codec) {
 }
 
 	
-static const struct snd_soc_codec_driver soc_codec_dev_ak4558 = {
+static const struct snd_soc_component_driver soc_codec_dev_ak4558 = {
 	.probe = ak4558_probe,
-	.component_driver = {
-		.dapm_widgets		= ak4558_dapm_widgets,
-		.num_dapm_widgets	= ARRAY_SIZE(ak4558_dapm_widgets),
-		.dapm_routes		= ak4558_dapm_routes,
-		.num_dapm_routes	= ARRAY_SIZE(ak4558_dapm_routes),
-	},
+	.dapm_widgets		= ak4558_dapm_widgets,
+	.num_dapm_widgets	= ARRAY_SIZE(ak4558_dapm_widgets),
+	.dapm_routes		= ak4558_dapm_routes,
+	.num_dapm_routes	= ARRAY_SIZE(ak4558_dapm_routes),
 };
 
 static const struct of_device_id ak4558_of_match[] = {
@@ -295,7 +293,7 @@ static int ak4558_i2c_probe(struct i2c_client *i2c, const struct i2c_device_id *
 	}
 
 
-	ret = snd_soc_register_codec(&i2c->dev, &soc_codec_dev_ak4558, &ak4558_dai, 1);
+	ret = snd_soc_register_component(&i2c->dev, &soc_codec_dev_ak4558, &ak4558_dai, 1);
 	if (ret < 0) {
 		dev_err(&i2c->dev, "error registering ak4558 codec: %d\n", ret);
 		return ret;
@@ -305,7 +303,6 @@ static int ak4558_i2c_probe(struct i2c_client *i2c, const struct i2c_device_id *
 }
 
 static int ak4558_i2c_remove(struct i2c_client *client) {
-	snd_soc_unregister_codec(&client->dev);
 	return 0;
 }
 

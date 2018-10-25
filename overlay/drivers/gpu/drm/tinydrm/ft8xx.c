@@ -26,6 +26,7 @@
 
 #include <drm/drm_gem_framebuffer_helper.h>
 #include <drm/drm_fb_helper.h>
+#include <drm/drm_modeset_helper.h> 
 #include <drm/drm_modes.h>
 #include <drm/drm_vblank.h>
 #include <drm/tinydrm/tinydrm.h>
@@ -549,11 +550,13 @@ static void ft8logo_init(struct ft8device *ft8) {
 }
 
 static void ft8pipe_enable(struct drm_simple_display_pipe *pipe,
-			struct drm_crtc_state *crtc_state)
+			   struct drm_crtc_state *crtc_state,
+			   struct drm_plane_state *plane_state)
 {
 
 	struct tinydrm_device *tdev = pipe_to_tinydrm(pipe);
 	struct ft8device *ft8 = container_of(tdev, struct ft8device, tinydrm);
+	struct drm_framebuffer *fb = plane_state->fb;
 	int i;
 
 	ft8clear_buffers(ft8);
@@ -562,9 +565,10 @@ static void ft8pipe_enable(struct drm_simple_display_pipe *pipe,
 		ft8->stats[i] = 0;
 
 	drm_crtc_vblank_on(&ft8->tinydrm.pipe.crtc);
-
+	
 	ft8->enabled = true;
 	ft8->stats[ENABLED] = ktime_get();
+	if (fb) tdev->fb_dirty(fb, NULL, 0, 0, NULL, 0);
 
 }
 
@@ -614,7 +618,7 @@ static const struct drm_simple_display_pipe_funcs ft8pipe_funcs = {
 	.enable = ft8pipe_enable,
 	.disable = ft8pipe_disable,
 	.update = ft8display_pipe_update,
-	.prepare_fb = tinydrm_display_pipe_prepare_fb,
+	.prepare_fb = drm_gem_fb_simple_display_pipe_prepare_fb,
 };
 
 static int ft8fb_dirty(struct drm_framebuffer *fb,
@@ -720,7 +724,6 @@ int ft8debug_stats_show(struct seq_file *m, void *arg) {
 }
 
 static const struct drm_info_list ft8debug_list[] = {
-	{"fb",   drm_fb_cma_debugfs_show, 0},
 	{"stats", ft8debug_stats_show, 0},
 };
 
@@ -825,7 +828,6 @@ int ft8debug_init(struct drm_minor *minor) {
 DEFINE_DRM_GEM_CMA_FOPS(ft8drm_fops);
 static struct drm_driver ft8drm_driver = {
 	.driver_features	   = DRIVER_GEM | DRIVER_MODESET | DRIVER_PRIME | DRIVER_ATOMIC,
-	.lastclose		   = tinydrm_lastclose,
 	.fops                      = &ft8drm_fops,
 	TINYDRM_GEM_DRIVER_OPS,
 	.enable_vblank             = &ft8vblank_enable,
@@ -1139,7 +1141,7 @@ static int __maybe_unused ft8suspend(struct device *dev)
 	struct ft8device *ft8 = container_of(tdev, struct ft8device, tinydrm);
 	int ret;
 
-	ret = tinydrm_suspend(tdev);
+	ret = drm_mode_config_helper_suspend(tdev->drm);
         if (ret)
                 return ret;
 
@@ -1155,7 +1157,7 @@ static int __maybe_unused ft8resume(struct device *dev)
 
 	ft8chip_powerup(ft8);
 
-        return tinydrm_resume(tdev);
+        return drm_mode_config_helper_resume(tdev->drm);
 }
 
 
