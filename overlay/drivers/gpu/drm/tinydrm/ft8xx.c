@@ -242,7 +242,6 @@ struct ft8device {
 	struct spi_device *spi;
 	struct input_dev *input_emu;
 	struct gpio_desc *interrupt_gpio;
-	struct mutex dirty_lock;
 	int irq;
 	bool enabled;
 	u8 chip_id;
@@ -553,6 +552,7 @@ static void ft8pipe_enable(struct drm_simple_display_pipe *pipe,
 			   struct drm_crtc_state *crtc_state,
 			   struct drm_plane_state *plane_state)
 {
+  
 
 	struct tinydrm_device *tdev = pipe_to_tinydrm(pipe);
 	struct ft8device *ft8 = container_of(tdev, struct ft8device, tinydrm);
@@ -564,11 +564,11 @@ static void ft8pipe_enable(struct drm_simple_display_pipe *pipe,
 	for (i = 0; i < NSTATS; i++)
 		ft8->stats[i] = 0;
 
-	drm_crtc_vblank_on(&ft8->tinydrm.pipe.crtc);
-	
 	ft8->enabled = true;
+	drm_crtc_vblank_on(&pipe->crtc);
 	ft8->stats[ENABLED] = ktime_get();
-	if (fb) tdev->fb_dirty(fb, NULL, 0, 0, NULL, 0);
+	if (fb)  tdev->fb_dirty(fb, NULL, 0, 0, NULL, 0); 
+	
 
 }
 
@@ -578,7 +578,9 @@ static void ft8pipe_disable(struct drm_simple_display_pipe *pipe)
 	struct ft8device *ft8 = container_of(tdev, struct ft8device, tinydrm);
 	//WREG(PWM_DUTY, 0);
 	ft8->stats[DISABLED] = ktime_get();
+	mutex_lock(&tdev->dirty_lock);
 	ft8->enabled = false;
+	mutex_unlock(&tdev->dirty_lock);
 	drm_crtc_vblank_off(&ft8->tinydrm.pipe.crtc);
 
 }
@@ -588,30 +590,47 @@ void ft8display_pipe_update(struct drm_simple_display_pipe *pipe,
 {
 	struct tinydrm_device *tdev = pipe_to_tinydrm(pipe);
 	struct drm_framebuffer *fb = pipe->plane.state->fb;
-	struct drm_crtc *crtc = &tdev->pipe.crtc;
+	struct drm_crtc *crtc = &pipe->crtc;
 	struct ft8device *ft8 = container_of(tdev, struct ft8device, tinydrm);
-
+	struct drm_pending_vblank_event *event = crtc->state->event;
 	ft8->stats[UPDATES]++;
 
-	if (crtc->state->event) {
+	if (event) {
+	        crtc->state->event = NULL;
 		spin_lock_irq(&crtc->dev->event_lock);
 		if (crtc->state->active && drm_crtc_vblank_get(crtc) == 0)
-                        drm_crtc_arm_vblank_event(crtc, crtc->state->event);
+                        drm_crtc_arm_vblank_event(crtc, event);
                 else
-                        drm_crtc_send_vblank_event(crtc, crtc->state->event);
-
+                        drm_crtc_send_vblank_event(crtc, event);
 		ft8->stats[SWAPS]++;
-		spin_unlock_irq(&crtc->dev->event_lock);
+		spin_unlock_irq(&crtc->dev->event_lock);		
 
-		if (fb) {
-			pipe->plane.fb = fb;
-			fb->funcs->dirty(fb, NULL, 0, 0, NULL, 0);
-			ft8->stats[UPDIRTIES]++;
+		if (fb && (fb != old_state->fb)) {
+		  if (tdev->fb_dirty) {
+		    tdev->fb_dirty(fb, NULL, 0, 0, NULL, 0);
+		    ft8->stats[UPDIRTIES]++;
+		  }
 		}
 		ft8->stats[NFRAMES] = RREG(FRAMES);
 
-		crtc->state->event = NULL;
 	}
+}
+
+static int ft8vblank_enable(struct drm_simple_display_pipe *pipe) { 
+        struct drm_crtc *crtc = &pipe->crtc;
+        struct drm_device *drm = crtc->dev;
+        struct tinydrm_device *tdev = drm->dev_private;
+	struct ft8device *ft8 = container_of(tdev, struct ft8device, tinydrm);
+	ft8->vblank_on = 1;
+	return 0;
+}
+
+static void ft8vblank_disable(struct drm_simple_display_pipe *pipe) { 
+        struct drm_crtc *crtc = &pipe->crtc;
+        struct drm_device *drm = crtc->dev;
+        struct tinydrm_device *tdev = drm->dev_private;
+	struct ft8device *ft8 = container_of(tdev, struct ft8device, tinydrm);
+	ft8->vblank_on = 0;
 }
 
 static const struct drm_simple_display_pipe_funcs ft8pipe_funcs = {
@@ -619,6 +638,9 @@ static const struct drm_simple_display_pipe_funcs ft8pipe_funcs = {
 	.disable = ft8pipe_disable,
 	.update = ft8display_pipe_update,
 	.prepare_fb = drm_gem_fb_simple_display_pipe_prepare_fb,
+	.enable_vblank = ft8vblank_enable,
+	.disable_vblank = ft8vblank_disable,
+
 };
 
 static int ft8fb_dirty(struct drm_framebuffer *fb,
@@ -635,13 +657,8 @@ static int ft8fb_dirty(struct drm_framebuffer *fb,
 
 	ft8->stats[DIRTIES]++;
 
-	mutex_lock(&ft8->dirty_lock);
-
 	if (!ft8->enabled)
-		goto out_unlock;
-
-	if (tdev->pipe.plane.fb != fb)
-		goto out_unlock;
+	  return 0;
 
 	if (fb->format->format != ft8->format)
 		ft8set_format(ft8, fb->format->format);
@@ -651,15 +668,11 @@ static int ft8fb_dirty(struct drm_framebuffer *fb,
 	clip.x2 = W;
 	startpix = W * clip.y1;
 	npix = W * (clip.y2 - clip.y1);
-	if (npix == 0) goto out_unlock;
+	if (npix == 0) return 0;
 
 	ft8buf_transfer(ft8, cma_obj->vaddr + startpix * ft8->bpp, RAM(G) /*ft8->drawbuf*/, startpix * ft8->bpp, npix * ft8->bpp);
 
 	// TODO: make the swap atomic
-
-
-out_unlock:
-	mutex_unlock(&ft8->dirty_lock);
 
 	return 0;
 }
@@ -667,7 +680,7 @@ out_unlock:
 static const struct drm_framebuffer_funcs ft8fb_funcs = {
         .destroy        = drm_gem_fb_destroy,
         .create_handle  = drm_gem_fb_create_handle,
-        .dirty = ft8fb_dirty,
+        .dirty = tinydrm_fb_dirty,
 };
 
 
@@ -694,18 +707,6 @@ static enum hrtimer_restart ft8vblank_isr(struct hrtimer *timer) {
 	return HRTIMER_NORESTART;
 }
 
-static int ft8vblank_enable(struct drm_device *drm, unsigned int crtc) {
-	struct tinydrm_device *tdev = drm->dev_private;
-	struct ft8device *ft8 = container_of(tdev, struct ft8device, tinydrm);
-	ft8->vblank_on = 1;
-	return 0;
-}
-
-static void ft8vblank_disable(struct drm_device *drm, unsigned int crtc) {
-	struct tinydrm_device *tdev = drm->dev_private;
-	struct ft8device *ft8 = container_of(tdev, struct ft8device, tinydrm);
-	ft8->vblank_on = 0;
-}
 
 int ft8debug_stats_show(struct seq_file *m, void *arg) {
 	struct drm_info_node *node = (struct drm_info_node *) m->private;
@@ -830,8 +831,6 @@ static struct drm_driver ft8drm_driver = {
 	.driver_features	   = DRIVER_GEM | DRIVER_MODESET | DRIVER_PRIME | DRIVER_ATOMIC,
 	.fops                      = &ft8drm_fops,
 	TINYDRM_GEM_DRIVER_OPS,
-	.enable_vblank             = &ft8vblank_enable,
-	.disable_vblank            = &ft8vblank_disable,
 	//.get_vblank_counter        = &drm_crtc_accurate_vblank_count,
 	.debugfs_init              = ft8debug_init,
 	.name			   = "ft8xx",
@@ -854,11 +853,10 @@ static int ft8drm_init(struct ft8device *ft8) {
 	struct tinydrm_device *tdev = &ft8->tinydrm;
 	int ret = 0;
 
-	mutex_init(&ft8->dirty_lock);
-
 	ret = devm_tinydrm_init(dev, tdev, &ft8fb_funcs, &ft8drm_driver);
         if (ret)
                 return ret;
+	tdev->fb_dirty = ft8fb_dirty;
 
 	ret = tinydrm_display_pipe_init(tdev, &ft8pipe_funcs, DRM_MODE_CONNECTOR_VIRTUAL, ft8formats,
 					ARRAY_SIZE(ft8formats), &ft8mode, 0);
@@ -1111,7 +1109,6 @@ static void ft8shutdown(struct spi_device *spi) {
 	input_unregister_device(ft8->input_emu);
 	free_irq(ft8->irq, ft8);
 	input_free_device(ft8->input_emu);
-	mutex_destroy(&ft8->dirty_lock);
 	tinydrm_shutdown(tdev);
 
 }

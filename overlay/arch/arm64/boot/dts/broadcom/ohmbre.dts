@@ -25,24 +25,15 @@
 	
 	/delete-node/ leds;
 	/delete-node/ cpus;
-	
-	expgpio: expgpio {
-                compatible = "brcm,bcm2835-expgpio";
-                gpio-controller;
-		#gpio-cells = <2>;
-		firmware = <&firmware>;
-                status = "okay";
-        };
-	
-	/*vchiq: vchiq {
-		compatible = "brcm,bcm2835-vchiq";
-		reg = <0x7e00b840 0xf>;
-		interrupts = <0 2>;
-		cache-line-size = <32>;
-		firmware = <&firmware>;
-        };*/
-	
-	
+
+	virtgpio: virtgpio {
+        	  compatible = "brcm,bcm2835-virtgpio";
+                  gpio-controller;
+                  #gpio-cells = <2>;
+                  firmware = <&firmware>;
+                  status = "okay";
+	};
+		
 	cpus: cpus {
 		#address-cells = <1>;
                 #size-cells = <0>;
@@ -51,6 +42,8 @@
 			device_type = "cpu";
                         compatible = "arm,cortex-a53", "arm,armv8";
                         reg = <0>;
+			enable-method = "spin-table";
+			cpu-release-addr = <0x0 0xd8>;
                         clock-frequency = <1200000000>;
 		};
 		
@@ -430,6 +423,7 @@
 
 &i2c2 {
 	status = "okay";
+	clock-frequency = <100000>;
 };
 
 &i2s {
@@ -441,6 +435,7 @@
 };
 
 &v3d {
+        interrupts = <1 10>;
 	status = "okay";
 };
 
@@ -451,6 +446,18 @@
 &vec {
 	status = "okay";
 };
+
+&firmware {
+        expgpio: gpio {
+	      compatible = "raspberrypi,firmware-gpio";
+	      gpio-controller;
+	      #gpio-cells = <2>;
+	      gpio-line-names = "HPD_N", "EMMC_EN_N";
+	      status = "okay";
+	};
+};
+
+
 
 &clocks {
         claim-clocks = <

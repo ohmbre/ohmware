@@ -4,7 +4,7 @@
 
 setenv() {
 
-    remote_addr=ohmbre #10.0.0.3
+    remote_addr=ohm #10.0.0.3
     arch=arm64
     gccarch=aarch64
     kconfig=bcmrpi3_defconfig
@@ -115,21 +115,22 @@ kdist() {
     setenv
     ksetup
     echo "running with make command: $kmake"
-    $kmake -j48 modules_install
-    cp $kbld_dir/arch/$arch/boot/$dts_subdir/ohmbre.dtb $dist_dir/boot/ohmbre.dtb
-    cp $kbld_dir/arch/$arch/boot/$dts_subdir/debug.dtb $dist_dir/boot/debug.dtb
-    cp $kbld_dir/arch/$arch/boot/$kernel $dist_dir/boot/ohmbre.img
-    cp $ksrc_dir/arch/$arch/boot/config.txt $dist_dir/boot/config.txt
-    cp $ksrc_dir/arch/$arch/boot/cmdline.txt $dist_dir/boot/cmdline.txt
-    cp $kbld_dir/arch/$arch/boot/$dts_subdir/dt-blob.bin $dist_dir/boot/dt-blob.bin
+    sudo $kmake -j48 modules_install
+    sudo cp $kbld_dir/arch/$arch/boot/$dts_subdir/ohmbre.dtb $dist_dir/boot/ohmbre.dtb
+    sudo cp $kbld_dir/arch/$arch/boot/$dts_subdir/debug.dtb $dist_dir/boot/debug.dtb
+    sudo cp $kbld_dir/arch/$arch/boot/$kernel $dist_dir/boot/ohmbre.img
+    sudo cp $ksrc_dir/arch/$arch/boot/config.txt $dist_dir/boot/config.txt
+    sudo cp $ksrc_dir/arch/$arch/boot/cmdline.txt $dist_dir/boot/cmdline.txt
+    sudo cp $kbld_dir/arch/$arch/boot/$dts_subdir/dt-blob.bin $dist_dir/boot/dt-blob.bin
     clrenv
 }
 
 kext() {
     setenv
-    wget -O $dist_dir/boot/bootcode.bin https://raw.githubusercontent.com/raspberrypi/firmware/next/boot/bootcode.bin
-    wget -O $dist_dir/boot/fixup.dat https://raw.githubusercontent.com/raspberrypi/firmware/next/boot/fixup.dat
-    wget -O $dist_dir/boot/start.elf https://raw.githubusercontent.com/raspberrypi/firmware/next/boot/start.elf
+    sudo mkdir -p $dist_dir/boot
+    sudo wget -O $dist_dir/boot/bootcode.bin https://raw.githubusercontent.com/raspberrypi/firmware/next/boot/bootcode.bin
+    sudo wget -O $dist_dir/boot/fixup.dat https://raw.githubusercontent.com/raspberrypi/firmware/next/boot/fixup.dat
+    sudo wget -O $dist_dir/boot/start.elf https://raw.githubusercontent.com/raspberrypi/firmware/next/boot/start.elf
     clrenv
 }
 
@@ -139,17 +140,18 @@ kinstall() {
 
     if [ -b /dev/disk/by-label/ohmware ] && [ -b /dev/disk/by-label/ohmbase ]; then
 	echo "installing ohmware to sd card"
+	sudo chown -R root:root $dist_dir
 	mkdir -p $mntpt
 	mkdir -p $mntpt/b
 	mkdir -p $mntpt/s
 	[[ $(findmnt -S LABEL=ohmware -M $mntpt/b) ]] || mount /dev/disk/by-label/ohmware $mntpt/b
 	[[ $(findmnt -S LABEL=ohmbase -M $mntpt/s) ]] || mount /dev/disk/by-label/ohmbase $mntpt/s
-	cp $dist_dir/boot/* $mntpt/b/
-	rm -rf $mntpt/s/lib/modules/*
-	cp -a $dist_dir/lib/modules/$release $mntpt/s/lib/modules/
+	sudo cp $dist_dir/boot/* $mntpt/b/
+	sudo rm -rf $mntpt/s/lib/modules/*
+	sudo cp -a $dist_dir/lib/modules/$release $mntpt/s/lib/modules/
 
 	if [ "$1" = "debug" ]; then
-	    sed -i -e 's/ohmbre.dtb/debug.dtb/g' $mntpt/b/config.txt
+	    sudo sed -i -e 's/ohmbre.dtb/debug.dtb/g' $mntpt/b/config.txt
 	fi
     
 	sync   
@@ -158,16 +160,16 @@ kinstall() {
 	rmdir $mntpt/b $mntpt/s $mntpt
     else
 	echo "installing ohmware to live host at $remote_addr"
-	scp $dist_dir/boot/* $remote_addr:/boot/
+	scp $dist_dir/boot/* root@$remote_addr:/boot/
 	if [ "$1" = "debug" ]; then
-	    cat $dist_dir/boot/config.txt | sed -e 's/ohmbre.dtb/debug.dtb/g' | ssh $remote_addr 'cat > /boot/config.txt'
+	    cat $dist_dir/boot/config.txt | sed -e 's/ohmbre.dtb/debug.dtb/g' | ssh root@$remote_addr 'cat > /boot/config.txt'
 	fi
 	cd $dist_dir/lib/modules
-	ssh $remote_addr rm -rf /lib/modules/$release
-	tar cf - $release | ssh $remote_addr '(cd /lib/modules/; tar xf - )'
+	ssh root@$remote_addr rm -rf /lib/modules/$release
+	tar cf - $release | ssh root@$remote_addr '(cd /lib/modules/; tar xf - )'
 	cd $this_dir
-	ssh $remote_addr depmod
-	ssh $remote_addr sync
+	ssh root@$remote_addr depmod
+	ssh root@$remote_addr sync
     fi
     clrenv
 }
@@ -206,8 +208,8 @@ sinstall() {
 	umount -A $mntpt/s
     else
 	echo "installing ohmware to live host at $remote_addr"
-	cat $sbld_dir/images/rootfs.tar | ssh $remote_addr '(cd /; tar xf - )'
-	ssh $remote_addr sync
+	cat $sbld_dir/images/rootfs.tar | ssh root@$remote_addr '(cd /; tar xf - )'
+	ssh root@$remote_addr sync
     fi
     clrenv
 }
@@ -216,22 +218,23 @@ sdformat() {
     setenv
 
     sudo sfdisk $1 < sdcard.sfdisk
-    sudo partx -a $1
+    sudo partx -u $1
     prefix=$1
     if [ ! -b $11 ]; then
 	prefix=$1p
     fi
+    sudo chmod a+rw $1
+    suffix=*
+    sudo chmod a+rw $prefix$suffix
     suffix=1
     sudo mkfs.fat -n ohmware -F 16 $prefix$suffix
     suffix=2
     sudo mkfs.ext4 -L ohmbase $prefix$suffix
     suffix=3
     sudo mkswap -L ohmswap $prefix$suffix
+    echo ", +" | sfdisk --force -N 4 $1
     suffix=4
     sudo mkfs.ext4 -L ohmowner $prefix$suffix
-    echo ", +" | sudo sfdisk -N 4 $1
-    suffix=*
-    sudo chmod a+rw $prefix$suffix
     
     clrenv
 }
@@ -243,5 +246,5 @@ krebuild() {
     kinstall $1
 }
 
-alias ohmsweetohm="sconfig && sbuild && sinstall && kconfig && kbuild && kext && kdist"
+alias ohmsweetohm="sconfig && sbuild && sinstall && kconfig && kbuild && kext && kdist && kinstall"
 cd "$( dirname "${BASH_SOURCE[0]}" )"
